@@ -3,6 +3,8 @@ use crate::graphics_backend::GraphicsBackend;
 pub trait Canvas {
     fn setup(&mut self);
     fn draw(&mut self);
+    fn get_screen_size(&self) -> (u32, u32);
+    fn clear(&mut self, color: u32);
 }
 
 pub struct BasicCanvas {
@@ -38,5 +40,13 @@ impl Canvas for BasicCanvas {
 
     fn draw(&mut self) {
         // Default empty draw
+    }
+
+    fn get_screen_size(&self) -> (u32, u32) {
+        self.backend.get_screen_size()
+    }
+
+    fn clear(&mut self, color: u32) {
+        self.backend.clear(color);
     }
 }

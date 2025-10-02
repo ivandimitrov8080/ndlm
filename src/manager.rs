@@ -1,28 +1,23 @@
 use std::io::{Read, StdinLock};
 use std::{fs, io::Bytes};
-
+use framebuffer::{Framebuffer, KdMode};
+use crate::canvas::Canvas;
 use crate::color::Color;
-use framebuffer::{Framebuffer, KdMode, VarScreeninfo};
+use crate::config::Config;
 
-use crate::{buffer, greetd, Config, Error};
+use crate::error::Error;
+use crate::greetd;
 const USERNAME_CAP: usize = 64;
 const PASSWORD_CAP: usize = 64;
-
 const LAST_USER_USERNAME: &str = "/var/cache/ndlm/lastuser";
 
-// from linux/fb.h
-const FB_ACTIVATE_NOW: u32 = 0;
-const FB_ACTIVATE_FORCE: u32 = 128;
 
 #[derive(PartialEq, Copy, Clone)]
 enum Mode {
     EditingUsername,
     EditingPassword,
 }
-
-use crate::canvas::Canvas;
-
-pub struct LoginManager<'a> {
+pub struct LoginManager {
     canvas: Box<dyn Canvas>,
     config: Config,
     should_refresh: bool,
@@ -30,84 +25,74 @@ pub struct LoginManager<'a> {
     username: String,
     password: String,
     should_quit: bool,
+    mode: Mode,
+    screen_size: (u32, u32),
+    greetd: greetd::GreetD,
 }
-
-impl<'a> LoginManager<'a> {
-    pub fn new(fb: &'a mut Framebuffer, config: Config) -> Self {
+impl LoginManager {
+    pub fn new(canvas: Box<dyn Canvas>, config: Config) -> Self {
+        let screen_size = canvas.get_screen_size();
         Self {
-            buf: &mut fb.frame,
-            device: &fb.device,
-            screen_size: (fb.var_screen_info.xres, fb.var_screen_info.yres),
-            mode: Mode::EditingUsername,
-            greetd: greetd::GreetD::new(),
-            var_screen_info: &fb.var_screen_info,
+            canvas,
+            config,
             should_refresh: false,
             stdin_bytes: std::io::stdin().lock().bytes(),
             username: String::with_capacity(USERNAME_CAP),
             password: String::with_capacity(PASSWORD_CAP),
-            config,
             should_quit: false,
+            mode: Mode::EditingUsername,
+            screen_size,
+            greetd: greetd::GreetD::new(),
         }
     }
-
     fn refresh(&mut self) {
         if self.should_refresh {
             self.should_refresh = false;
-            let mut screeninfo = self.var_screen_info.clone();
-            screeninfo.activate |= FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
-            Framebuffer::put_var_screeninfo(self.device, &screeninfo)
-                .expect("Failed to refresh framebuffer");
+            // let mut screeninfo = self.var_screen_info.clone();
+            // screeninfo.activate |= FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
+            // Framebuffer::put_var_screeninfo(self.device, &screeninfo)
+            //     .expect("Failed to refresh framebuffer");
         }
     }
-
     fn clear(&mut self) {
-        let mut buf = buffer::Buffer::new(self.buf, self.screen_size);
         let bg = self.config.theme.module.background_start_color;
-        buf.memset(&bg);
+        self.canvas.clear(bg.as_argb8888());
         self.should_refresh = true;
     }
-
     fn draw_prompt(&mut self, offset: (u32, u32)) -> Result<(), Error> {
-        let mut buf = buffer::Buffer::new(self.buf, self.screen_size);
-        let mut prompt_font = self.config.theme.module.font.clone();
         let bg = self.config.theme.module.background_start_color;
-        buf.memset(&bg);
+        self.canvas.clear(bg.as_argb8888());
+        let _prompt_font = self.config.theme.module.font.clone();
         let mut stars = "".to_string();
         for _ in 0..self.password.len() {
             stars += "*";
         }
-        let (username_color, password_color) = match self.mode {
+        let (_username_color, _password_color) = match self.mode {
             Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
-
-        let username = self.username.clone();
-
-        let (x, y) = (offset.0 - 40, offset.1 - 10);
-        prompt_font.auto_draw_text(
-            &mut buf.offset((x, y))?,
-            &bg,
-            &username_color,
-            &format!("Username: {username}"),
-        )?;
-
-        prompt_font.auto_draw_text(
-            &mut buf.offset((x, y + 20))?,
-            &bg,
-            &password_color,
-            &format!("Password: {stars}"),
-        )?;
-
+        let _username = self.username.clone();
+        let (_x, _y) = (offset.0 - 40, offset.1 - 10);
+        // prompt_font.auto_draw_text(
+        //     &mut buf.offset((x, y))?,
+        //     &bg,
+        //     &username_color,
+        //     &format!("Username: {username}"),
+        // )?;
+        // prompt_font.auto_draw_text(
+        //     &mut buf.offset((x, y + 20))?,
+        //     &bg,
+        //     &password_color,
+        //     &format!("Password: {stars}"),
+        // )?;
         Ok(())
     }
-
     fn goto_next_mode(&mut self) {
         self.mode = match self.mode {
             Mode::EditingUsername => Mode::EditingPassword,
             Mode::EditingPassword => Mode::EditingUsername,
         }
     }
-
     fn draw(&mut self) {
         let xoff = self.config.theme.module.dialog_horizontal_alignment;
         let yoff = self.config.theme.module.dialog_vertical_alignment;
@@ -116,14 +101,12 @@ impl<'a> LoginManager<'a> {
         self.draw_prompt((x, y)).expect("unable to draw prompt");
         self.should_refresh = true;
     }
-
     fn read_byte(&mut self) -> u8 {
         self.stdin_bytes
             .next()
             .and_then(Result::ok)
             .unwrap_or_else(quit)
     }
-
     fn handle_keyboard(&mut self) {
         match self.read_byte() as char {
             '\x15' | '\x0B' => match self.mode {
@@ -187,7 +170,6 @@ impl<'a> LoginManager<'a> {
             },
         }
     }
-
     fn setup(&mut self) {
         self.clear();
         self.draw();
@@ -199,7 +181,6 @@ impl<'a> LoginManager<'a> {
             Err(_) => {}
         };
     }
-
     pub fn start(&mut self) {
         self.setup();
         loop {

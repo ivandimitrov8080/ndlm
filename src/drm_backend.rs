@@ -1,6 +1,6 @@
 use std::fs::File;
-use std::os::unix::io::AsRawFd;
-use drm::control::{Device as ControlDevice, ResourceHandles};
+
+use drm::control::{Device as ControlDevice};
 use drm::Device as BasicDevice;
 use crate::graphics_backend::GraphicsBackend;
 
@@ -16,11 +16,15 @@ impl DrmBackend {
     }
 }
 
-impl BasicDevice for DrmBackend {
-    fn as_raw_fd(&self) -> std::os::unix::io::RawFd {
-        self.device.as_raw_fd()
+use std::os::fd::{AsFd, BorrowedFd};
+
+impl AsFd for DrmBackend {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.device.as_fd()
     }
 }
+
+impl BasicDevice for DrmBackend {}
 
 impl ControlDevice for DrmBackend {}
 
@@ -43,5 +47,9 @@ impl GraphicsBackend for DrmBackend {
 
     fn clear(&mut self, _color: u32) {
         // TODO: Implement clear screen
+    }
+
+    fn get_screen_size(&self) -> (u32, u32) {
+        (1920, 1080)
     }
 }

@@ -4,20 +4,25 @@ use crate::graphics_backend::GraphicsBackend;
 use framebuffer::Framebuffer;
 
 pub struct FramebufferBackend<'a> {
-    fb: &'a mut Framebuffer,
     buffer: Buffer<'a>,
+    fb: &'a mut Framebuffer,
 }
 
 impl<'a> FramebufferBackend<'a> {
     pub fn new(fb: &'a mut Framebuffer) -> Self {
-        let buffer = Buffer::new(fb.buffer_mut(), (fb.var_screen_info.xres, fb.var_screen_info.yres));
+        let buffer = unsafe {
+            let ptr = fb.frame.as_mut_ptr();
+            let len = fb.frame.len();
+            Buffer::new(std::slice::from_raw_parts_mut(ptr, len), (fb.var_screen_info.xres, fb.var_screen_info.yres))
+        };
         Self { fb, buffer }
     }
 }
 
 impl<'a> GraphicsBackend for FramebufferBackend<'a> {
     fn draw_pixel(&mut self, x: i32, y: i32, color: u32) {
-        let _ = self.buffer.put((x as u32, y as u32), &Color::from_argb8888(color));
+        let color_struct = Color::from_argb8888(color);
+        let _ = self.buffer.put((x as u32, y as u32), &color_struct);
     }
 
     fn draw_line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
@@ -83,6 +88,11 @@ impl<'a> GraphicsBackend for FramebufferBackend<'a> {
     }
 
     fn clear(&mut self, color: u32) {
-        self.buffer.memset(&Color::from_argb8888(color));
+        let color_struct = Color::from_argb8888(color);
+        self.buffer.memset(&color_struct);
+    }
+
+    fn get_screen_size(&self) -> (u32, u32) {
+        (self.fb.var_screen_info.xres, self.fb.var_screen_info.yres)
     }
 }
