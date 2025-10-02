@@ -13,7 +13,10 @@ impl<'a> FramebufferBackend<'a> {
         let buffer = unsafe {
             let ptr = fb.frame.as_mut_ptr();
             let len = fb.frame.len();
-            Buffer::new(std::slice::from_raw_parts_mut(ptr, len), (fb.var_screen_info.xres, fb.var_screen_info.yres))
+            Buffer::new(
+                std::slice::from_raw_parts_mut(ptr, len),
+                (fb.var_screen_info.xres, fb.var_screen_info.yres),
+            )
         };
         Self { fb, buffer }
     }
@@ -37,7 +40,9 @@ impl<'a> GraphicsBackend for FramebufferBackend<'a> {
 
         loop {
             self.draw_pixel(x1, y1, color);
-            if x1 == x2 && y1 == y2 { break; }
+            if x1 == x2 && y1 == y2 {
+                break;
+            }
             let e2 = 2 * err;
             if e2 >= dy {
                 err += dy;

@@ -1,8 +1,8 @@
 use std::fs::File;
 
-use drm::control::{Device as ControlDevice};
-use drm::Device as BasicDevice;
 use crate::graphics_backend::GraphicsBackend;
+use drm::control::Device as ControlDevice;
+use drm::Device as BasicDevice;
 
 pub struct DrmBackend {
     device: File,

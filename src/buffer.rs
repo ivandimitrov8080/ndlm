@@ -1,11 +1,7 @@
-
-
 use crate::color::Color;
 
 pub type Vect = (u32, u32);
 pub type Rect = (u32, u32, u32, u32);
-
-
 
 pub struct Buffer<'a> {
     buf: &'a mut [u8],

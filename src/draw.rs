@@ -42,12 +42,34 @@ impl FromStr for Font {
     }
 }
 
+use crate::p5::P5;
+use rusttype::{point, Scale};
+
 impl Font {
     pub fn new(font: &'static RustFont<'_>, size: f32) -> Font {
         Font {
             glyphs: HashMap::new(),
             font,
             size,
+        }
+    }
+
+    pub fn draw_text(&self, p5: &mut P5, x: i32, y: i32, text: &str, color: u32) {
+        let scale = Scale::uniform(self.size);
+        let v_metrics = self.font.v_metrics(scale);
+        let start = point(x as f32, y as f32 + v_metrics.ascent);
+        let glyphs: Vec<_> = self.font.layout(text, scale, start).collect();
+
+        for g in glyphs {
+            if let Some(bb) = g.pixel_bounding_box() {
+                g.draw(|gx, gy, gv| {
+                    if gv > 0.0 {
+                        let gx = gx as i32 + bb.min.x;
+                        let gy = gy as i32 + bb.min.y;
+                        p5.rect(gx, gy, gx + 1, gy + 1, color);
+                    }
+                });
+            }
         }
     }
 }

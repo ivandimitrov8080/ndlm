@@ -1,8 +1,7 @@
-
-use crate::canvas::{Canvas, BasicCanvas};
-use crate::framebuffer_backend::FramebufferBackend;
-use crate::drm_backend::DrmBackend;
+use crate::canvas::{BasicCanvas, Canvas};
 use crate::config::Config;
+use crate::drm_backend::DrmBackend;
+use crate::framebuffer_backend::FramebufferBackend;
 use framebuffer::{Framebuffer, KdMode};
 
 pub struct P5 {
@@ -15,18 +14,26 @@ impl P5 {
 
         match config.session.get(0).map(|s| s.as_str()) {
             Some("drm") => {
-                let drm_backend = DrmBackend::new("/dev/dri/card0").expect("unable to open drm device");
+                let drm_backend =
+                    DrmBackend::new("/dev/dri/card0").expect("unable to open drm device");
                 let basic_canvas = BasicCanvas::new(Box::new(drm_backend));
                 canvas = Box::new(basic_canvas);
             }
             _ => {
-                let framebuffer = Box::new(Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device"));
+                let framebuffer = Box::new(
+                    Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device"),
+                );
                 Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
                 let fb_backend = FramebufferBackend::new(Box::leak(framebuffer));
                 let basic_canvas = BasicCanvas::new(Box::new(fb_backend));
                 canvas = Box::new(basic_canvas);
             }
         }
+        Self { canvas }
+    }
+
+    #[cfg(test)]
+    pub fn new_with_canvas(canvas: Box<dyn Canvas>) -> Self {
         Self { canvas }
     }
 

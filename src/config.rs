@@ -1,8 +1,8 @@
-use std::str::FromStr;
 use crate::color::Color;
 use crate::draw::Font;
 use crate::error::Error;
 use std::fs;
+use std::str::FromStr;
 
 #[derive(Default, Clone)]
 pub struct Module {

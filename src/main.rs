@@ -13,34 +13,36 @@ mod greetd;
 mod manager;
 pub mod p5;
 
-use framebuffer::{Framebuffer, KdMode};
-use manager::LoginManager;
-use canvas::{Canvas, BasicCanvas};
-use framebuffer_backend::FramebufferBackend;
-use drm_backend::DrmBackend;
+use canvas::{BasicCanvas, Canvas};
 use config::parse_args;
+use drm_backend::DrmBackend;
+use framebuffer::{Framebuffer, KdMode};
+use framebuffer_backend::FramebufferBackend;
+use manager::LoginManager;
+
+use std::io::Read;
+use std::sync::mpsc;
+use std::thread;
 
 fn main() {
     let config = parse_args();
 
-    let canvas: Box<dyn Canvas>;
+    let (input_tx, input_rx) = mpsc::channel();
 
-    match config.session.get(0).map(|s| s.as_str()) {
-        Some("drm") => {
-            let drm_backend = DrmBackend::new("/dev/dri/card0").expect("unable to open drm device");
-            let basic_canvas = BasicCanvas::new(Box::new(drm_backend));
-            canvas = Box::new(basic_canvas);
+    thread::spawn(move || {
+        let stdin = std::io::stdin();
+        let mut reader = std::io::BufReader::new(stdin);
+        let mut buffer = [0; 1];
+        loop {
+            if reader.read(&mut buffer).is_ok() {
+                input_tx.send(buffer[0]).unwrap();
+            } else {
+                break;
+            }
         }
-        _ => {
-            let framebuffer = Box::new(Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device"));
-            Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
-            let fb_backend = FramebufferBackend::new(Box::leak(framebuffer));
-            let basic_canvas = BasicCanvas::new(Box::new(fb_backend));
-            canvas = Box::new(basic_canvas);
-        }
-    }
+    });
 
-    let mut login_manager = LoginManager::new(config.clone());
+    let mut login_manager = LoginManager::new(config.clone(), input_rx);
     login_manager.start();
 
     // Cleanup if framebuffer was used
