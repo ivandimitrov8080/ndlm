@@ -8,6 +8,11 @@ use termion::raw::IntoRawMode;
 use thiserror::Error;
 
 use crate::{color::Color, draw::Font, manager::LoginManager};
+use crate::graphics_backend::GraphicsBackend;
+use crate::framebuffer_backend::FramebufferBackend;
+use crate::drm_backend::DrmBackend;
+use crate::canvas::{Canvas, BasicCanvas};
+use std::io::Write;
 
 mod buffer;
 mod color;
@@ -154,12 +159,27 @@ fn parse_args() -> Config {
 }
 
 fn main() {
-    let mut framebuffer = Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device");
-    let raw = std::io::stdout()
-        .into_raw_mode()
-        .expect("unable to enter raw mode");
-    Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
-    LoginManager::new(&mut framebuffer, parse_args()).start();
-    Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
-    drop(raw);
+    let config = parse_args();
+
+    let mut canvas: Box<dyn Canvas>;
+
+    match config.session.get(0).map(|s| s.as_str()) {
+        Some("drm") => {
+            let drm_backend = DrmBackend::new("/dev/dri/card0").expect("unable to open drm device");
+            let basic_canvas = BasicCanvas::new(Box::new(drm_backend));
+            canvas = Box::new(basic_canvas);
+        }
+        _ => {
+            let mut framebuffer = Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device");
+            Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
+            let fb_backend = FramebufferBackend::new(&mut framebuffer);
+            let basic_canvas = BasicCanvas::new(Box::new(fb_backend));
+            canvas = Box::new(basic_canvas);
+        }
+    }
+
+    canvas.setup();
+    canvas.draw();
+
+    // TODO: Integrate with LoginManager or main loop as needed
 }

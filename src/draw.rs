@@ -1,4 +1,4 @@
-use crate::buffer::{Buffer};
+use crate::buffer::Buffer;
 use crate::color::Color;
 
 use std::collections::HashMap;

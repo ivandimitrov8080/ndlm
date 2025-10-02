@@ -20,14 +20,11 @@ enum Mode {
     EditingPassword,
 }
 
+use crate::canvas::Canvas;
+
 pub struct LoginManager<'a> {
-    buf: &'a mut [u8],
-    device: &'a fs::File,
-    screen_size: (u32, u32),
-    mode: Mode,
-    greetd: greetd::GreetD,
+    canvas: Box<dyn Canvas>,
     config: Config,
-    var_screen_info: &'a VarScreeninfo,
     should_refresh: bool,
     stdin_bytes: Bytes<StdinLock<'static>>,
     username: String,
