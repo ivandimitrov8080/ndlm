@@ -86,6 +86,7 @@
             machine.send_key("s");
             machine.send_key("t");
             machine.send_key("ret");
+            time.sleep(1)
             machine.succeed("loginctl list-sessions | grep test");
             machine.succeed("journalctl -u greetd | grep 'Session started'");
           '';
