@@ -2,13 +2,12 @@
 use crate::greetd;
 use crate::manager::{LoginManager, Mode, PASSWORD_CAP, USERNAME_CAP};
 use crate::p5::P5;
-use crate::{config::Config, canvas::Canvas};
+use crate::{canvas::Canvas, config::Config};
 use std::sync::mpsc;
 
 struct MockCanvas;
 
 impl Canvas for MockCanvas {
-
     fn get_screen_size(&self) -> (u32, u32) {
         (800, 600)
     }
@@ -16,6 +15,7 @@ impl Canvas for MockCanvas {
     fn rect(&mut self, _x1: i32, _y1: i32, _x2: i32, _y2: i32, _color: u32) {}
     fn line(&mut self, _x1: i32, _y1: i32, _x2: i32, _y2: i32, _color: u32) {}
     fn circle(&mut self, _x: i32, _y: i32, _radius: i32, _color: u32) {}
+    fn cleanup(&mut self) {}
 }
 
 use std::env;
@@ -43,11 +43,8 @@ fn new_test_manager(input: &'static str) -> LoginManager {
     thread::spawn(move || {
         for stream in listener.incoming() {
             match stream {
-                Ok(_stream) => {
-                    // Handle the connection
-                }
+                Ok(_stream) => {}
                 Err(_err) => {
-                    // Handle the error
                     break;
                 }
             }
@@ -71,7 +68,6 @@ fn new_test_manager(input: &'static str) -> LoginManager {
 fn test_username_input() {
     let mut login_manager = new_test_manager("testuser");
 
-    // Process all input
     for _ in 0.."testuser".len() {
         login_manager.handle_keyboard();
     }
@@ -84,7 +80,6 @@ fn test_password_input() {
     let mut login_manager = new_test_manager("testpass");
     login_manager.mode = Mode::EditingPassword;
 
-    // Process all input
     for _ in 0.."testpass".len() {
         login_manager.handle_keyboard();
     }
@@ -96,7 +91,6 @@ fn test_password_input() {
 fn test_input_mode_switching() {
     let mut login_manager = new_test_manager("testuser\rtestpass");
 
-    // Process all input
     for _ in 0.."testuser\rtestpass".len() {
         login_manager.handle_keyboard();
     }

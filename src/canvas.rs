@@ -6,6 +6,7 @@ pub trait Canvas {
     fn rect(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, color: u32);
     fn line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, color: u32);
     fn circle(&mut self, x: i32, y: i32, radius: i32, color: u32);
+    fn cleanup(&mut self);
 }
 
 pub struct BasicCanvas {
@@ -53,5 +54,9 @@ impl Canvas for BasicCanvas {
 
     fn circle(&mut self, x: i32, y: i32, radius: i32, color: u32) {
         self.circle(x, y, radius, color);
+    }
+
+    fn cleanup(&mut self) {
+        self.backend.cleanup();
     }
 }

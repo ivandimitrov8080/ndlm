@@ -45,10 +45,6 @@ impl LoginManager {
     fn refresh(&mut self) {
         if self.should_refresh {
             self.should_refresh = false;
-            // let mut screeninfo = self.var_screen_info.clone();
-            // screeninfo.activate |= FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
-            // Framebuffer::put_var_screeninfo(self.device, &screeninfo)
-            //     .expect("Failed to refresh framebuffer");
         }
     }
     fn clear(&mut self) {
@@ -194,6 +190,5 @@ impl LoginManager {
         }
     }
 }
-
 
 mod tests;

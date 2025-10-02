@@ -71,10 +71,6 @@ impl P5 {
 
 impl Drop for P5 {
     fn drop(&mut self) {
-        // Cleanup if framebuffer was used
-        // This is a bit of a hack, we should probably have a better way to determine the backend
-        if let Ok(_) = Framebuffer::set_kd_mode(KdMode::Text) {
-            //
-        }
+        self.canvas.cleanup();
     }
 }

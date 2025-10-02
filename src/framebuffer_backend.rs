@@ -1,7 +1,7 @@
 use crate::buffer::Buffer;
 use crate::color::Color;
 use crate::graphics_backend::GraphicsBackend;
-use framebuffer::Framebuffer;
+use framebuffer::{Framebuffer, KdMode};
 
 pub struct FramebufferBackend<'a> {
     buffer: Buffer<'a>,
@@ -99,5 +99,9 @@ impl<'a> GraphicsBackend for FramebufferBackend<'a> {
 
     fn get_screen_size(&self) -> (u32, u32) {
         (self.fb.var_screen_info.xres, self.fb.var_screen_info.yres)
+    }
+
+    fn cleanup(&mut self) {
+        Framebuffer::set_kd_mode(KdMode::Text).expect("unable to enter text mode");
     }
 }

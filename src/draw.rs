@@ -23,7 +23,6 @@ pub enum DrawError {
 
 #[derive(Clone)]
 pub struct Font {
-
     font: &'static RustFont<'static>,
     size: f32,
 }
@@ -47,11 +46,7 @@ use rusttype::{point, Scale};
 
 impl Font {
     pub fn new(font: &'static RustFont<'_>, size: f32) -> Font {
-        Font {
-
-            font,
-            size,
-        }
+        Font { font, size }
     }
 
     pub fn draw_text(&self, p5: &mut P5, x: i32, y: i32, text: &str, color: u32) {
@@ -73,5 +68,3 @@ impl Font {
         }
     }
 }
-
-
