@@ -11,6 +11,7 @@ mod framebuffer_backend;
 mod graphics_backend;
 mod greetd;
 mod manager;
+pub mod p5;
 
 use framebuffer::{Framebuffer, KdMode};
 use manager::LoginManager;
@@ -39,7 +40,7 @@ fn main() {
         }
     }
 
-    let mut login_manager = LoginManager::new(canvas, config.clone());
+    let mut login_manager = LoginManager::new(config.clone());
     login_manager.start();
 
     // Cleanup if framebuffer was used

@@ -1,12 +1,12 @@
 use std::io::{Read, StdinLock};
 use std::{fs, io::Bytes};
 use framebuffer::{Framebuffer, KdMode};
-use crate::canvas::Canvas;
+use crate::p5::P5;
 use crate::color::Color;
 use crate::config::Config;
-
 use crate::error::Error;
 use crate::greetd;
+
 const USERNAME_CAP: usize = 64;
 const PASSWORD_CAP: usize = 64;
 const LAST_USER_USERNAME: &str = "/var/cache/ndlm/lastuser";
@@ -18,7 +18,7 @@ enum Mode {
     EditingPassword,
 }
 pub struct LoginManager {
-    canvas: Box<dyn Canvas>,
+    p5: P5,
     config: Config,
     should_refresh: bool,
     stdin_bytes: Bytes<StdinLock<'static>>,
@@ -26,14 +26,13 @@ pub struct LoginManager {
     password: String,
     should_quit: bool,
     mode: Mode,
-    screen_size: (u32, u32),
     greetd: greetd::GreetD,
 }
 impl LoginManager {
-    pub fn new(canvas: Box<dyn Canvas>, config: Config) -> Self {
-        let screen_size = canvas.get_screen_size();
+    pub fn new(config: Config) -> Self {
+        let p5 = P5::new(config.clone());
         Self {
-            canvas,
+            p5,
             config,
             should_refresh: false,
             stdin_bytes: std::io::stdin().lock().bytes(),
@@ -41,7 +40,6 @@ impl LoginManager {
             password: String::with_capacity(PASSWORD_CAP),
             should_quit: false,
             mode: Mode::EditingUsername,
-            screen_size,
             greetd: greetd::GreetD::new(),
         }
     }
@@ -56,35 +54,23 @@ impl LoginManager {
     }
     fn clear(&mut self) {
         let bg = self.config.theme.module.background_start_color;
-        self.canvas.clear(bg.as_argb8888());
+        self.p5.background(bg.as_argb8888());
         self.should_refresh = true;
     }
     fn draw_prompt(&mut self, offset: (u32, u32)) -> Result<(), Error> {
         let bg = self.config.theme.module.background_start_color;
-        self.canvas.clear(bg.as_argb8888());
-        let _prompt_font = self.config.theme.module.font.clone();
-        let mut stars = "".to_string();
-        for _ in 0..self.password.len() {
-            stars += "*";
-        }
+        self.p5.background(bg.as_argb8888());
         let (_username_color, _password_color) = match self.mode {
             Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
-        let _username = self.username.clone();
-        let (_x, _y) = (offset.0 - 40, offset.1 - 10);
-        // prompt_font.auto_draw_text(
-        //     &mut buf.offset((x, y))?,
-        //     &bg,
-        //     &username_color,
-        //     &format!("Username: {username}"),
-        // )?;
-        // prompt_font.auto_draw_text(
-        //     &mut buf.offset((x, y + 20))?,
-        //     &bg,
-        //     &password_color,
-        //     &format!("Password: {stars}"),
-        // )?;
+        let (x, y) = (offset.0 as i32, offset.1 as i32);
+
+        // Draw username box
+        self.p5.rect(x - 100, y - 20, x + 100, y + 10, 0xFFFFFF);
+        // Draw password box
+        self.p5.rect(x - 100, y + 20, x + 100, y + 50, 0xFFFFFF);
+
         Ok(())
     }
     fn goto_next_mode(&mut self) {
@@ -94,10 +80,11 @@ impl LoginManager {
         }
     }
     fn draw(&mut self) {
+        let screen_size = self.p5.get_screen_size();
         let xoff = self.config.theme.module.dialog_horizontal_alignment;
         let yoff = self.config.theme.module.dialog_vertical_alignment;
-        let x = (self.screen_size.0 as f32 * xoff) as u32;
-        let y = (self.screen_size.1 as f32 * yoff) as u32;
+        let x = (screen_size.0 as f32 * xoff) as u32;
+        let y = (screen_size.1 as f32 * yoff) as u32;
         self.draw_prompt((x, y)).expect("unable to draw prompt");
         self.should_refresh = true;
     }

@@ -5,6 +5,9 @@ pub trait Canvas {
     fn draw(&mut self);
     fn get_screen_size(&self) -> (u32, u32);
     fn clear(&mut self, color: u32);
+    fn rect(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, color: u32);
+    fn line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, color: u32);
+    fn circle(&mut self, x: i32, y: i32, radius: i32, color: u32);
 }
 
 pub struct BasicCanvas {
@@ -48,5 +51,17 @@ impl Canvas for BasicCanvas {
 
     fn clear(&mut self, color: u32) {
         self.backend.clear(color);
+    }
+
+    fn rect(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
+        self.backend.draw_rect(x1, y1, x2, y2, color);
+    }
+
+    fn line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
+        self.backend.draw_line(x1, y1, x2, y2, color);
+    }
+
+    fn circle(&mut self, x: i32, y: i32, radius: i32, color: u32) {
+        self.backend.draw_circle(x, y, radius, color);
     }
 }
