@@ -72,9 +72,22 @@
         testScript =
           #py
           ''
+            import time;
             start_all;
             machine.wait_for_unit("greetd.service");
-            machine.succeed("pgrep ndlm");
+            time.sleep(1)
+            machine.send_key("t");
+            machine.send_key("e");
+            machine.send_key("s");
+            machine.send_key("t");
+            machine.send_key("ret");
+            machine.send_key("t");
+            machine.send_key("e");
+            machine.send_key("s");
+            machine.send_key("t");
+            machine.send_key("ret");
+            machine.succeed("loginctl list-sessions | grep test");
+            machine.succeed("journalctl -u greetd | grep 'Session started'");
           '';
       };
     };
