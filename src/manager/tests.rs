@@ -1,6 +1,8 @@
 #![cfg(test)]
-use crate::canvas::Canvas;
-use crate::config::Config;
+use crate::greetd;
+use crate::manager::{LoginManager, Mode, PASSWORD_CAP, USERNAME_CAP};
+use crate::p5::P5;
+use crate::{config::Config, Canvas};
 use std::sync::mpsc;
 
 struct MockCanvas;
