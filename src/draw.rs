@@ -1,11 +1,9 @@
-use crate::buffer::Buffer;
-use crate::color::Color;
 use crate::error::Error;
 use std::collections::HashMap;
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
-use rusttype::{point, Font as RustFont, Scale};
+use rusttype::Font as RustFont;
 use thiserror::Error as ThisError;
 
 pub static DEJAVUSANS_MONO_FONT_DATA: &[u8] = include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf");
