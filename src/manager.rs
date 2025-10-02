@@ -3,7 +3,7 @@ use crate::config::Config;
 use crate::error::Error;
 use crate::greetd;
 use crate::p5::P5;
-use framebuffer::{Framebuffer, KdMode};
+
 use std::fs;
 use std::sync::mpsc::Receiver;
 
@@ -194,9 +194,6 @@ impl LoginManager {
         }
     }
 }
-fn quit() -> u8 {
-    Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
-    std::process::exit(1);
-}
+
 
 mod tests;

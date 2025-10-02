@@ -2,14 +2,13 @@
 use crate::greetd;
 use crate::manager::{LoginManager, Mode, PASSWORD_CAP, USERNAME_CAP};
 use crate::p5::P5;
-use crate::{config::Config, Canvas};
+use crate::{config::Config, canvas::Canvas};
 use std::sync::mpsc;
 
 struct MockCanvas;
 
 impl Canvas for MockCanvas {
-    fn setup(&mut self) {}
-    fn draw(&mut self) {}
+
     fn get_screen_size(&self) -> (u32, u32) {
         (800, 600)
     }

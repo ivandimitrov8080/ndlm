@@ -1,5 +1,5 @@
 use crate::error::Error;
-use std::collections::HashMap;
+
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
@@ -23,7 +23,7 @@ pub enum DrawError {
 
 #[derive(Clone)]
 pub struct Font {
-    glyphs: HashMap<char, CachedGlyph>,
+
     font: &'static RustFont<'static>,
     size: f32,
 }
@@ -48,7 +48,7 @@ use rusttype::{point, Scale};
 impl Font {
     pub fn new(font: &'static RustFont<'_>, size: f32) -> Font {
         Font {
-            glyphs: HashMap::new(),
+
             font,
             size,
         }
@@ -74,9 +74,4 @@ impl Font {
     }
 }
 
-#[derive(Clone)]
-struct CachedGlyph {
-    dimensions: (u32, u32),
-    origin: (i32, i32),
-    render: Vec<f32>,
-}
+

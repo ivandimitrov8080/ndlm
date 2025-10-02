@@ -13,11 +13,9 @@ mod greetd;
 mod manager;
 pub mod p5;
 
-use canvas::{BasicCanvas, Canvas};
 use config::parse_args;
-use drm_backend::DrmBackend;
 use framebuffer::{Framebuffer, KdMode};
-use framebuffer_backend::FramebufferBackend;
+
 use manager::LoginManager;
 
 use std::io::Read;
@@ -31,11 +29,11 @@ fn main() {
 
     thread::spawn(move || {
         let stdin = std::io::stdin();
-        let mut reader = std::io::BufReader::new(stdin);
-        let mut buffer = [0; 1];
-        loop {
-            if reader.read(&mut buffer).is_ok() {
-                input_tx.send(buffer[0]).unwrap();
+        for byte in stdin.bytes() {
+            if let Ok(b) = byte {
+                if input_tx.send(b).is_err() {
+                    break;
+                }
             } else {
                 break;
             }
