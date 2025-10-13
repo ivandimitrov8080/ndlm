@@ -1,6 +1,7 @@
 use crate::color::Color;
 use crate::draw::Font;
 
+#[allow(dead_code)]
 pub trait Renderer {
     fn clear(&mut self, color: Color);
     fn rect(&mut self, x: u32, y: u32, w: u32, h: u32, fill: Color, stroke: Option<Color>);
@@ -127,11 +128,13 @@ impl Renderer for DrmRenderer {
 pub struct Canvas<'a> {
     pub renderer: Box<dyn Renderer + 'a>,
     pub fill: Color,
+    #[allow(dead_code)]
     pub stroke: Option<Color>,
     pub font: Font,
     pub font_size: f32,
 }
 
+#[allow(dead_code)]
 impl<'a> Canvas<'a> {
     pub fn background(&mut self, color: Color) { self.renderer.clear(color); }
     pub fn fill(&mut self, color: Color) { self.fill = color; }

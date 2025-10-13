@@ -4,15 +4,13 @@ use std::{fs, io::Bytes};
 use crate::color::Color;
 use framebuffer::{Framebuffer, KdMode};
 
-use crate::{buffer, greetd, Config, Error};
+use crate::{greetd, Config, Error};
 const USERNAME_CAP: usize = 64;
 const PASSWORD_CAP: usize = 64;
 
 const LAST_USER_USERNAME: &str = "/var/cache/ndlm/lastuser";
 
 // from linux/fb.h
-const FB_ACTIVATE_NOW: u32 = 0;
-const FB_ACTIVATE_FORCE: u32 = 128;
 
 #[derive(PartialEq, Copy, Clone)]
 enum Mode {
