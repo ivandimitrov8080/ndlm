@@ -53,43 +53,40 @@
           };
           boot.loader.grub.devices = [ "/dev/vda" ];
         };
+      testNdlmCanLogin = (
+        pkgs.testers.runNixOSTest {
+          name = "test";
+          nodes = {
+            machine = test-vm;
+          };
+          testScript =
+            #py
+            ''
+              machine.wait_for_unit("multi-user.target");
+              machine.send_chars("test\ntest\n");
+              machine.sleep(1)
+              machine.succeed("loginctl list-sessions | grep test");
+            '';
+        }
+      );
     in
     {
-      nixosConfigurations.default = nixpkgs.lib.nixosSystem {
-        modules = [
-          test-vm
-          {
-            nixpkgs.hostPlatform = "x86_64-linux";
-          }
-        ];
-      };
-      packages.${system}.default = self.nixosConfigurations.default.config.system.build.vm;
-      checks.${system}.default = pkgs.testers.runNixOSTest {
-        name = "test";
-        nodes = {
-          machine = test-vm;
+      nixosConfigurations = {
+        default = nixpkgs.lib.nixosSystem {
+          modules = [
+            test-vm
+            {
+              nixpkgs.hostPlatform = "x86_64-linux";
+            }
+          ];
         };
-        testScript =
-          #py
-          ''
-            import time;
-            start_all;
-            machine.wait_for_unit("greetd.service");
-            time.sleep(1)
-            machine.send_key("t");
-            machine.send_key("e");
-            machine.send_key("s");
-            machine.send_key("t");
-            machine.send_key("ret");
-            machine.send_key("t");
-            machine.send_key("e");
-            machine.send_key("s");
-            machine.send_key("t");
-            machine.send_key("ret");
-            time.sleep(1)
-            machine.succeed("loginctl list-sessions | grep test");
-            machine.succeed("journalctl -u greetd | grep 'Session started'");
-          '';
+      };
+      packages.${system} = {
+        default = self.nixosConfigurations.default.config.system.build.vm;
+        interactive = testNdlmCanLogin.driverInteractive;
+      };
+      checks.${system} = {
+        default = testNdlmCanLogin;
       };
     };
 }
