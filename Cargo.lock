@@ -446,6 +446,7 @@ dependencies = [
  "greetd_ipc",
  "hostname",
  "lazy_static",
+ "libc",
  "memmap",
  "nix",
  "pam",
