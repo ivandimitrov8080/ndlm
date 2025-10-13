@@ -27,7 +27,7 @@ pub enum DrawError {
     GlyphNotInCache(char),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct CachedGlyph {
     dimensions: (u32, u32),
     origin: (i32, i32),
@@ -91,7 +91,7 @@ impl CachedGlyph {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Font {
     glyphs: HashMap<char, CachedGlyph>,
     font: &'static RustFont<'static>,

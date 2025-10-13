@@ -115,15 +115,39 @@ impl<'a> Renderer for FramebufferRenderer<'a> {
 }
 
 // DRM Renderer stub
+// A skeleton for a real DRM renderer. In a real implementation, you would store
+// the DRM device, framebuffer, and any other state needed for rendering.
 pub struct DrmRenderer;
+
 impl Renderer for DrmRenderer {
-    fn clear(&mut self, _color: Color) {}
-    fn rect(&mut self, _x: u32, _y: u32, _w: u32, _h: u32, _fill: Color, _stroke: Option<Color>) {}
-    fn ellipse(&mut self, _x: u32, _y: u32, _w: u32, _h: u32, _fill: Color, _stroke: Option<Color>) {}
-    fn line(&mut self, _x1: u32, _y1: u32, _x2: u32, _y2: u32, _stroke: Color) {}
-    fn text(&mut self, _x: u32, _y: u32, _text: &str, _font: &Font, _size: f32, _color: Color) {}
-    fn present(&mut self) {}
+    fn clear(&mut self, color: Color) {
+        // TODO: Fill the framebuffer with the given color using DRM APIs
+        // Example: memset the framebuffer memory to the color value
+        // This is a placeholder for real DRM logic
+        println!("[DrmRenderer] clear: {:?}", color);
+    }
+    fn rect(&mut self, x: u32, y: u32, w: u32, h: u32, fill: Color, stroke: Option<Color>) {
+        // TODO: Draw a rectangle to the framebuffer using DRM APIs
+        println!("[DrmRenderer] rect: x={} y={} w={} h={} fill={:?} stroke={:?}", x, y, w, h, fill, stroke);
+    }
+    fn ellipse(&mut self, x: u32, y: u32, w: u32, h: u32, fill: Color, stroke: Option<Color>) {
+        // TODO: Draw an ellipse to the framebuffer using DRM APIs
+        println!("[DrmRenderer] ellipse: x={} y={} w={} h={} fill={:?} stroke={:?}", x, y, w, h, fill, stroke);
+    }
+    fn line(&mut self, x1: u32, y1: u32, x2: u32, y2: u32, stroke: Color) {
+        // TODO: Draw a line to the framebuffer using DRM APIs
+        println!("[DrmRenderer] line: x1={} y1={} x2={} y2={} stroke={:?}", x1, y1, x2, y2, stroke);
+    }
+    fn text(&mut self, x: u32, y: u32, text: &str, font: &Font, size: f32, color: Color) {
+        // TODO: Draw text to the framebuffer using DRM APIs and a font rasterizer
+        println!("[DrmRenderer] text: x={} y={} text='{}' font={:?} size={} color={:?}", x, y, text, font, size, color);
+    }
+    fn present(&mut self) {
+        // TODO: Perform a page flip or present the framebuffer using DRM APIs
+        println!("[DrmRenderer] present");
+    }
 }
+
 
 pub struct Canvas<'a> {
     pub renderer: Box<dyn Renderer + 'a>,
