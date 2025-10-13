@@ -10,11 +10,11 @@ use thiserror::Error;
 use crate::{color::Color, draw::Font, manager::LoginManager};
 
 mod buffer;
+mod canvas;
 mod color;
 mod draw;
 mod greetd;
 mod manager;
-mod canvas;
 
 #[derive(Error, Debug)]
 #[non_exhaustive]
@@ -27,7 +27,7 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 struct Module {
     font: Font,
     title_font: Font,
@@ -42,6 +42,26 @@ struct Module {
     vertical_alignment: f32,
     background_start_color: Color,
     background_end_color: Color,
+}
+
+impl Default for Module {
+    fn default() -> Self {
+        Self {
+            font: Font::default(),
+            title_font: Font::roboto_regular(96.0),
+            image_dir: String::from("images"),
+            dialog_horizontal_alignment: 0.5,
+            dialog_vertical_alignment: 0.5,
+            title_horizontal_alignment: 0.5,
+            title_vertical_alignment: 0.5,
+            watermark_horizontal_alignment: 0.5,
+            watermark_vertical_alignment: 0.5,
+            horizontal_alignment: 0.5,
+            vertical_alignment: 0.5,
+            background_start_color: Color::BLACK,
+            background_end_color: Color::WHITE,
+        }
+    }
 }
 
 impl FromStr for Module {
@@ -161,7 +181,10 @@ fn main() {
         .expect("unable to enter raw mode");
     Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
 
-    let screen_size = (framebuffer.var_screen_info.xres, framebuffer.var_screen_info.yres);
+    let screen_size = (
+        framebuffer.var_screen_info.xres,
+        framebuffer.var_screen_info.yres,
+    );
     let buf = buffer::Buffer::new(&mut framebuffer.frame, screen_size);
     let renderer = Box::new(canvas::FramebufferRenderer::new(buf));
     let config = parse_args();

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct Color {
     red: f32,
     green: f32,
@@ -30,6 +30,12 @@ impl FromStr for Color {
             }
             Err(_) => Ok(rgb(255f32, 0f32, 0f32)),
         }
+    }
+}
+
+impl Default for Color {
+    fn default() -> Self {
+        Color::BLACK
     }
 }
 

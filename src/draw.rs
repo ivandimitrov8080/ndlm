@@ -104,6 +104,12 @@ impl Default for Font {
     }
 }
 
+impl Font {
+    pub fn roboto_regular(size: f32) -> Self {
+        Font::new(&ROBOTO_REGULAR, size)
+    }
+}
+
 impl FromStr for Font {
     type Err = crate::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
