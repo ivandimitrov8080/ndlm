@@ -44,35 +44,46 @@ impl GreetD {
         password: String,
         cmd: Vec<String>,
     ) -> Result<(), Box<dyn Error>> {
-        let _ = Request::CreateSession { username }.write_to(&mut self.stream);
-        let _ = Request::PostAuthMessageResponse {
-            response: Some(password),
-        }
-        .write_to(&mut self.stream);
-        let response = Response::read_from(&mut self.stream)?;
-        match response {
-            Response::AuthMessage {
-                auth_message: _,
-                auth_message_type,
-            } => match auth_message_type {
-                AuthMessageType::Secret => {
-                    let _ = Request::StartSession { cmd }.write_to(&mut self.stream);
-                    let resp = Response::read_from(&mut self.stream)?;
-                    match resp {
-                        Response::Success => Ok(()),
-                        Response::Error { .. } | Response::AuthMessage { .. } => {
-                            Err(Box::new(LoginError("Wrong username or password".into())))
+        // Start session creation
+        Request::CreateSession { username }.write_to(&mut self.stream)?;
+        // Loop to handle all auth messages (e.g., password, 2FA, etc)
+        loop {
+            let response = Response::read_from(&mut self.stream)?;
+            match response {
+                Response::AuthMessage { auth_message: _, auth_message_type } => {
+                    match auth_message_type {
+                        AuthMessageType::Secret => {
+                            // Send password
+                            Request::PostAuthMessageResponse {
+                                response: Some(password.clone()),
+                            }.write_to(&mut self.stream)?;
+                        }
+                        _ => {
+                            // For any other prompt, just send empty response
+                            Request::PostAuthMessageResponse {
+                                response: None,
+                            }.write_to(&mut self.stream)?;
                         }
                     }
                 }
-                _ => Err(Box::new(LoginError("Wrong username".into()))),
-            },
-            Response::Success => {
-                let _ = Request::StartSession { cmd }.write_to(&mut self.stream);
-                let _ = Response::read_from(&mut self.stream)?;
-                Ok(())
+                Response::Success => {
+                    // Auth succeeded, now start session
+                    Request::StartSession { cmd: cmd.clone() }.write_to(&mut self.stream)?;
+                    let resp = Response::read_from(&mut self.stream)?;
+                    match resp {
+                         Response::Success => return Ok(()),
+                        Response::Error { .. } | Response::AuthMessage { .. } => {
+                            return Err(Box::new(LoginError("Session failed to start".into())))
+                        }
+                    }
+                }
+                Response::Error { .. } => {
+                    return Err(Box::new(LoginError("Wrong username or password".into())))
+                }
+                _ => {
+                    return Err(Box::new(LoginError("Unknown error".into())))
+                }
             }
-            _ => Err(Box::new(LoginError("Unknown error".into()))),
         }
     }
 
