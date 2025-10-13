@@ -155,15 +155,33 @@ fn parse_args() -> Config {
 }
 
 fn main() {
-    let mut framebuffer = Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device");
-    let raw = std::io::stdout()
-        .into_raw_mode()
-        .expect("unable to enter raw mode");
-    Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
+    let mut use_drm = false;
+    let mut screen_size = (0, 0);
+    let mut renderer: Box<dyn canvas::Renderer>;
+    // Try DRM first
+    let mut _framebuffer = None;
+    let mut _raw = None;
+    match canvas::DrmRenderer::new() {
+        Ok(mut drm_renderer) => {
+            use_drm = true;
+            screen_size = (drm_renderer.width, drm_renderer.height);
+            renderer = Box::new(drm_renderer);
+        },
+        Err(_) => {
+            // Fallback to framebuffer
+            let mut framebuffer = Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device");
+            let raw = std::io::stdout()
+                .into_raw_mode()
+                .expect("unable to enter raw mode");
+            Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
+            screen_size = (framebuffer.var_screen_info.xres, framebuffer.var_screen_info.yres);
+            let buf = crate::buffer::Buffer { buf: &mut *framebuffer.frame, dimensions: screen_size, subdimensions: None };
 
-    let screen_size = (framebuffer.var_screen_info.xres, framebuffer.var_screen_info.yres);
-    let buf = buffer::Buffer::new(&mut framebuffer.frame, screen_size);
-    let renderer = Box::new(canvas::FramebufferRenderer::new(buf));
+            renderer = Box::new(canvas::FramebufferRenderer::new(buf));
+            _framebuffer = Some(framebuffer);
+            _raw = Some(raw);
+        }
+    }
     let config = parse_args();
     let font = config.theme.module.font.clone();
     let mut canvas = canvas::Canvas::<'_> {
@@ -174,7 +192,7 @@ fn main() {
         font_size: 16.0,
     };
     LoginManager::new(screen_size, config).start(&mut canvas);
-
-    Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
-    drop(raw);
+    if !use_drm {
+        Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
+    }
 }
