@@ -44,8 +44,9 @@ impl GreetD {
         password: String,
         cmd: Vec<String>,
     ) -> Result<(), Box<dyn Error>> {
-        // Start session creation
-        Request::CreateSession { username }.write_to(&mut self.stream)?;
+         // Start session creation
+         eprintln!("[ndlm debug] Creating session for username: {}", username);
+         Request::CreateSession { username }.write_to(&mut self.stream)?;
         // Loop to handle all auth messages (e.g., password, 2FA, etc)
         loop {
             let response = Response::read_from(&mut self.stream)?;
@@ -67,8 +68,9 @@ impl GreetD {
                     }
                 }
                 Response::Success => {
-                    // Auth succeeded, now start session
-                    Request::StartSession { cmd: cmd.clone() }.write_to(&mut self.stream)?;
+// Auth succeeded, now start session
+                     eprintln!("[ndlm debug] Starting session with command: {:?}", cmd);
+                     Request::StartSession { cmd: cmd.clone() }.write_to(&mut self.stream)?;
                     let resp = Response::read_from(&mut self.stream)?;
                     match resp {
                          Response::Success => return Ok(()),

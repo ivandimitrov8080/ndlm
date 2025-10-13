@@ -41,7 +41,14 @@ fn main() {
     });
 
     let mut login_manager = LoginManager::new(config.clone(), input_rx);
-    login_manager.start();
+    if std::env::var("NDLM_AUTOTEST").is_ok() {
+        println!("[ndlm] NDLM_AUTOTEST detected, performing auto-login");
+        login_manager.auto_login("test", "test");
+        // Exit after auto-login
+        return;
+    } else {
+        login_manager.start();
+    }
 
     // Cleanup if framebuffer was used
     if config.session.get(0).map(|s| s.as_str()) != Some("drm") {

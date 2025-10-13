@@ -88,10 +88,19 @@ impl FromStr for Theme {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct Config {
     pub session: Vec<String>,
     pub theme: Theme,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            session: vec!["/run/current-system/sw/bin/sh".to_string()],
+            theme: Theme::default(),
+        }
+    }
 }
 
 pub fn parse_theme(theme_file: String) -> Theme {

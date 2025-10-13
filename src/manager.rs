@@ -28,6 +28,22 @@ pub struct LoginManager {
     input_rx: Receiver<u8>,
 }
 impl LoginManager {
+    pub fn auto_login(&mut self, username: &str, password: &str) {
+        println!("[ndlm] auto_login: username='{}' session='{}'", username, self.config.session.join(" "));
+        self.username = username.to_string();
+        self.password = password.to_string();
+        let result = self.greetd.login(
+            self.username.clone(),
+            self.password.clone(),
+            self.config.session.clone(),
+        );
+        println!("[ndlm] auto_login: login result: {:?}", result);
+        // Wait for session to be established only in autotest
+        if std::env::var("NDLM_AUTOTEST").is_ok() {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+        }
+        self.should_quit = true;
+    }
     pub fn new(config: Config, input_rx: Receiver<u8>) -> Self {
         let p5 = P5::new(config.clone());
         Self {
