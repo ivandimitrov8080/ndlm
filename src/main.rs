@@ -160,7 +160,21 @@ fn main() {
         .into_raw_mode()
         .expect("unable to enter raw mode");
     Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
-    LoginManager::new(&mut framebuffer, parse_args()).start();
+
+    let screen_size = (framebuffer.var_screen_info.xres, framebuffer.var_screen_info.yres);
+    let buf = buffer::Buffer::new(&mut framebuffer.frame, screen_size);
+    let renderer = Box::new(canvas::FramebufferRenderer::new(buf));
+    let config = parse_args();
+    let font = config.theme.module.font.clone();
+    let mut canvas = canvas::Canvas::<'_> {
+        renderer,
+        fill: crate::color::Color::WHITE,
+        stroke: Some(crate::color::Color::BLACK),
+        font,
+        font_size: 16.0,
+    };
+    LoginManager::new(screen_size, config).start(&mut canvas);
+
     Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
     drop(raw);
 }

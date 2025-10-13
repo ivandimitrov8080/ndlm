@@ -122,15 +122,15 @@ impl Renderer for DrmRenderer {
     fn present(&mut self) {}
 }
 
-pub struct Canvas {
-    pub renderer: Box<dyn Renderer>,
+pub struct Canvas<'a> {
+    pub renderer: Box<dyn Renderer + 'a>,
     pub fill: Color,
     pub stroke: Option<Color>,
     pub font: Font,
     pub font_size: f32,
 }
 
-impl Canvas {
+impl<'a> Canvas<'a> {
     pub fn background(&mut self, color: Color) { self.renderer.clear(color); }
     pub fn fill(&mut self, color: Color) { self.fill = color; }
     pub fn stroke(&mut self, color: Color) { self.stroke = Some(color); }

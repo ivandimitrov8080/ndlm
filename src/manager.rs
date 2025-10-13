@@ -2,7 +2,7 @@ use std::io::{Read, StdinLock};
 use std::{fs, io::Bytes};
 
 use crate::color::Color;
-use framebuffer::{Framebuffer, KdMode, VarScreeninfo};
+use framebuffer::{Framebuffer, KdMode};
 
 use crate::{buffer, greetd, Config, Error};
 const USERNAME_CAP: usize = 64;
@@ -20,14 +20,13 @@ enum Mode {
     EditingPassword,
 }
 
-pub struct LoginManager<'a> {
-    buf: &'a mut [u8],
-    device: &'a fs::File,
+use crate::canvas::Canvas; // now generic over lifetime
+
+pub struct LoginManager {
     screen_size: (u32, u32),
     mode: Mode,
     greetd: greetd::GreetD,
     config: Config,
-    var_screen_info: &'a VarScreeninfo,
     should_refresh: bool,
     stdin_bytes: Bytes<StdinLock<'static>>,
     username: String,
@@ -35,15 +34,12 @@ pub struct LoginManager<'a> {
     should_quit: bool,
 }
 
-impl<'a> LoginManager<'a> {
-    pub fn new(fb: &'a mut Framebuffer, config: Config) -> Self {
+impl LoginManager {
+    pub fn new(screen_size: (u32, u32), config: Config) -> Self {
         Self {
-            buf: &mut fb.frame,
-            device: &fb.device,
-            screen_size: (fb.var_screen_info.xres, fb.var_screen_info.yres),
+            screen_size,
             mode: Mode::EditingUsername,
             greetd: greetd::GreetD::new(),
-            var_screen_info: &fb.var_screen_info,
             should_refresh: false,
             stdin_bytes: std::io::stdin().lock().bytes(),
             username: String::with_capacity(USERNAME_CAP),
@@ -54,27 +50,17 @@ impl<'a> LoginManager<'a> {
     }
 
     fn refresh(&mut self) {
-        if self.should_refresh {
-            self.should_refresh = false;
-            let mut screeninfo = self.var_screen_info.clone();
-            screeninfo.activate |= FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
-            Framebuffer::put_var_screeninfo(self.device, &screeninfo)
-                .expect("Failed to refresh framebuffer");
-        }
+        // No-op: handled by Canvas/Renderer now
+        self.should_refresh = false;
     }
 
-    fn clear(&mut self) {
-        let mut buf = buffer::Buffer::new(self.buf, self.screen_size);
+    fn clear(&mut self, canvas: &mut Canvas<'_>) {
         let bg = self.config.theme.module.background_start_color;
-        buf.memset(&bg);
+        canvas.background(bg);
         self.should_refresh = true;
     }
 
-    fn draw_prompt(&mut self, offset: (u32, u32)) -> Result<(), Error> {
-        let mut buf = buffer::Buffer::new(self.buf, self.screen_size);
-        let mut prompt_font = self.config.theme.module.font.clone();
-        let bg = self.config.theme.module.background_start_color;
-        buf.memset(&bg);
+    fn draw_prompt(&mut self, canvas: &mut Canvas<'_>, offset: (u32, u32)) -> Result<(), Error> {
         let mut stars = "".to_string();
         for _ in 0..self.password.len() {
             stars += "*";
@@ -85,21 +71,12 @@ impl<'a> LoginManager<'a> {
         };
 
         let username = self.username.clone();
-
         let (x, y) = (offset.0 - 40, offset.1 - 10);
-        prompt_font.auto_draw_text(
-            &mut buf.offset((x, y))?,
-            &bg,
-            &username_color,
-            &format!("Username: {username}"),
-        )?;
 
-        prompt_font.auto_draw_text(
-            &mut buf.offset((x, y + 20))?,
-            &bg,
-            &password_color,
-            &format!("Password: {stars}"),
-        )?;
+        canvas.fill(username_color);
+        canvas.text(&format!("Username: {username}"), x, y);
+        canvas.fill(password_color);
+        canvas.text(&format!("Password: {stars}"), x, y + 20);
 
         Ok(())
     }
@@ -111,12 +88,12 @@ impl<'a> LoginManager<'a> {
         }
     }
 
-    fn draw(&mut self) {
+    fn draw(&mut self, canvas: &mut Canvas<'_>) {
         let xoff = self.config.theme.module.dialog_horizontal_alignment;
         let yoff = self.config.theme.module.dialog_vertical_alignment;
         let x = (self.screen_size.0 as f32 * xoff) as u32;
         let y = (self.screen_size.1 as f32 * yoff) as u32;
-        self.draw_prompt((x, y)).expect("unable to draw prompt");
+        self.draw_prompt(canvas, (x, y)).expect("unable to draw prompt");
         self.should_refresh = true;
     }
 
@@ -191,9 +168,9 @@ impl<'a> LoginManager<'a> {
         }
     }
 
-    fn setup(&mut self) {
-        self.clear();
-        self.draw();
+    fn setup(&mut self, canvas: &mut Canvas<'_>) {
+        self.clear(canvas);
+        self.draw(canvas);
         match fs::read_to_string(LAST_USER_USERNAME) {
             Ok(user) => {
                 self.username = user;
@@ -203,10 +180,10 @@ impl<'a> LoginManager<'a> {
         };
     }
 
-    pub fn start(&mut self) {
-        self.setup();
+    pub fn start(&mut self, canvas: &mut Canvas<'_>) {
+        self.setup(canvas);
         loop {
-            self.draw();
+            self.draw(canvas);
             self.handle_keyboard();
             self.refresh();
             if self.should_quit {
