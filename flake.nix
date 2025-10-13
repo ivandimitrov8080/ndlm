@@ -12,7 +12,7 @@
           pname = "ndlm";
           version = "1.0";
           src = ./.;
-          cargoHash = "sha256-ZP+kDc5Q1wA6du0gvniMoG8DezmYW8trxSpvxVdzccg=";
+          cargoHash = "sha256-eDUPUxogMrLJ9Yqa8T+Q5HclqqTamuUAGwQrpYhe44s=";
           meta = {
             mainProgram = pname;
           };
