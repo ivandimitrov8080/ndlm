@@ -26,3 +26,8 @@ shell-words = "1.1.0"
 drm = "0.14.1"
 libc = "0.2.177"
 
+[features]
+drm = []
+framebuffer = []
+default = ["framebuffer", "drm"]
+

@@ -3,7 +3,9 @@
 use std::fs;
 use std::str::FromStr;
 
+#[cfg(feature = "framebuffer")]
 use framebuffer::{Framebuffer, KdMode};
+#[cfg(feature = "framebuffer")]
 use termion::raw::IntoRawMode;
 use thiserror::Error;
 
@@ -175,29 +177,55 @@ fn parse_args() -> Config {
 }
 
 fn main() {
-    let mut framebuffer = Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device");
-    let raw = std::io::stdout()
-        .into_raw_mode()
-        .expect("unable to enter raw mode");
-    Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
-
-    let screen_size = (
-        framebuffer.var_screen_info.xres,
-        framebuffer.var_screen_info.yres,
-    );
-    let buf = buffer::Buffer::new(&mut framebuffer.frame, screen_size);
-    let renderer = Box::new(canvas::FramebufferRenderer::new(buf));
+    use std::path::Path;
     let config = parse_args();
     let font = config.theme.module.font.clone();
-    let mut canvas = canvas::Canvas::<'_> {
-        renderer,
-        fill: crate::color::Color::WHITE,
-        stroke: Some(crate::color::Color::BLACK),
-        font,
-        font_size: 16.0,
-    };
-    LoginManager::new(screen_size, config).start(&mut canvas);
 
-    Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
-    drop(raw);
+    // Try DRM first if enabled and available
+    #[cfg(feature = "drm")]
+    if Path::new("/dev/dri/card0").exists() {
+        let screen_size = (1024, 768); // TODO: get real size from DRM
+        let renderer = Box::new(canvas::DrmRenderer);
+        let mut canvas = canvas::Canvas::<'_> {
+            renderer,
+            fill: crate::color::Color::WHITE,
+            stroke: Some(crate::color::Color::BLACK),
+            font,
+            font_size: 16.0,
+        };
+        LoginManager::new(screen_size, config).start(&mut canvas);
+        return;
+    }
+
+    // If DRM not used, try framebuffer if enabled and available
+    #[cfg(feature = "framebuffer")]
+    if Path::new("/dev/fb0").exists() {
+        let mut framebuffer = Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device");
+        let raw = std::io::stdout()
+            .into_raw_mode()
+            .expect("unable to enter raw mode");
+        Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
+        let screen_size = (
+            framebuffer.var_screen_info.xres,
+            framebuffer.var_screen_info.yres,
+        );
+        let buf = buffer::Buffer::new(&mut framebuffer.frame, screen_size);
+        let renderer = Box::new(canvas::FramebufferRenderer::new(buf));
+        let mut canvas = canvas::Canvas::<'_> {
+            renderer,
+            fill: crate::color::Color::WHITE,
+            stroke: Some(crate::color::Color::BLACK),
+            font,
+            font_size: 16.0,
+        };
+        LoginManager::new(screen_size, config).start(&mut canvas);
+        Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
+        drop(raw);
+        return;
+    }
+
+    // If neither is available, print error and exit
+    eprintln!("No supported graphics device found (DRM or framebuffer). Enable the appropriate feature flag and ensure device nodes exist.");
+    std::process::exit(1);
 }
+
