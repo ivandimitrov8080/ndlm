@@ -104,7 +104,9 @@ impl<'a> Renderer for FramebufferRenderer<'a> {
     }
     fn text(&mut self, x: u32, y: u32, text: &str, font: &Font, _size: f32, color: Color) {
         let mut font = font.clone();
-        let _ = font.auto_draw_text(&mut self.buf, &self.bg, &color, text);
+        if let Ok(mut subbuf) = self.buf.offset((x, y)) {
+            let _ = font.auto_draw_text(&mut subbuf, &self.bg, &color, text);
+        }
     }
     fn present(&mut self) {
         // No-op for framebuffer
