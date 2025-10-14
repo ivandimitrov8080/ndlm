@@ -16,6 +16,7 @@ mod canvas;
 mod color;
 mod draw;
 mod greetd;
+mod keyboard;
 mod manager;
 
 #[derive(Error, Debug)]
@@ -184,6 +185,8 @@ fn main() {
     // Try DRM first if enabled and available
     #[cfg(feature = "drm")]
     if Path::new("/dev/dri/card0").exists() {
+        use crate::keyboard::drm_input::EvdevInput;
+
         let screen_size = (1024, 768); // TODO: get real size from DRM
         let renderer = Box::new(canvas::DrmRenderer);
         let mut canvas = canvas::Canvas::<'_> {
@@ -193,14 +196,22 @@ fn main() {
             font,
             font_size: 16.0,
         };
-        LoginManager::new(screen_size, config).start(&mut canvas);
+        LoginManager::new(
+            screen_size,
+            config,
+            Box::new(EvdevInput::new("/dev/input/event0").expect("Failed to open evdev device")),
+        )
+        .start(&mut canvas);
         return;
     }
 
     // If DRM not used, try framebuffer if enabled and available
     #[cfg(feature = "framebuffer")]
     if Path::new("/dev/fb0").exists() {
-        let mut framebuffer = Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device");
+        use crate::keyboard::fb_input::StdinInput;
+
+        let mut framebuffer =
+            Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device");
         let raw = std::io::stdout()
             .into_raw_mode()
             .expect("unable to enter raw mode");
@@ -218,7 +229,7 @@ fn main() {
             font,
             font_size: 16.0,
         };
-        LoginManager::new(screen_size, config).start(&mut canvas);
+        LoginManager::new(screen_size, config, Box::new(StdinInput::new())).start(&mut canvas);
         Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
         drop(raw);
         return;
@@ -228,4 +239,3 @@ fn main() {
     eprintln!("No supported graphics device found (DRM or framebuffer). Enable the appropriate feature flag and ensure device nodes exist.");
     std::process::exit(1);
 }
-

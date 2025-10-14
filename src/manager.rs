@@ -1,5 +1,9 @@
-use std::io::{Read, StdinLock};
-use std::{fs, io::Bytes};
+#[cfg(feature = "drm")]
+use crate::keyboard::drm_input::EvdevInput;
+#[cfg(feature = "framebuffer")]
+use crate::keyboard::fb_input::StdinInput;
+use crate::keyboard::{KeyEvent, KeyboardInput};
+use std::fs;
 
 use crate::color::Color;
 use framebuffer::{Framebuffer, KdMode};
@@ -26,20 +30,20 @@ pub struct LoginManager {
     greetd: greetd::GreetD,
     config: Config,
     should_refresh: bool,
-    stdin_bytes: Bytes<StdinLock<'static>>,
+    input: Box<dyn KeyboardInput>,
     username: String,
     password: String,
     should_quit: bool,
 }
 
 impl LoginManager {
-    pub fn new(screen_size: (u32, u32), config: Config) -> Self {
+    pub fn new(screen_size: (u32, u32), config: Config, input: Box<dyn KeyboardInput>) -> Self {
         Self {
             screen_size,
             mode: Mode::EditingUsername,
             greetd: greetd::GreetD::new(),
             should_refresh: false,
-            stdin_bytes: std::io::stdin().lock().bytes(),
+            input,
             username: String::with_capacity(USERNAME_CAP),
             password: String::with_capacity(PASSWORD_CAP),
             config,
@@ -91,78 +95,78 @@ impl LoginManager {
         let yoff = self.config.theme.module.dialog_vertical_alignment;
         let x = (self.screen_size.0 as f32 * xoff) as u32;
         let y = (self.screen_size.1 as f32 * yoff) as u32;
-        self.draw_prompt(canvas, (x, y)).expect("unable to draw prompt");
+        self.draw_prompt(canvas, (x, y))
+            .expect("unable to draw prompt");
         self.should_refresh = true;
     }
 
-    fn read_byte(&mut self) -> u8 {
-        self.stdin_bytes
-            .next()
-            .and_then(Result::ok)
-            .unwrap_or_else(quit)
-    }
-
     fn handle_keyboard(&mut self) {
-        match self.read_byte() as char {
-            '\x15' | '\x0B' => match self.mode {
-                // ctrl-k/ctrl-u
-                Mode::EditingUsername => self.username.clear(),
-                Mode::EditingPassword => self.password.clear(),
-            },
-            '\x03' | '\x04' => {
-                // ctrl-c/ctrl-D
-                self.username.clear();
-                self.password.clear();
-                self.greetd.cancel();
-                self.should_quit = true;
-                return;
-            }
-            '\x7F' => match self.mode {
-                // backspace
-                Mode::EditingUsername => {
-                    self.username.pop();
-                }
-                Mode::EditingPassword => {
-                    self.password.pop();
-                }
-            },
-            '\t' => self.goto_next_mode(),
-            '\r' => match self.mode {
-                Mode::EditingUsername => {
-                    if !self.username.is_empty() {
-                        self.mode = Mode::EditingPassword;
-                    }
-                }
-                Mode::EditingPassword => {
-                    if self.password.is_empty() {
+        if let Some(event) = self.input.next_key_event() {
+            match event {
+                KeyEvent::Char(v) => match v {
+                    '\x15' | '\x0B' => match self.mode {
+                        // ctrl-k/ctrl-u
+                        Mode::EditingUsername => self.username.clear(),
+                        Mode::EditingPassword => self.password.clear(),
+                    },
+                    '\x03' | '\x04' => {
+                        // ctrl-c/ctrl-D
                         self.username.clear();
-                        self.mode = Mode::EditingUsername;
-                    } else {
-                        let res = self.greetd.login(
-                            self.username.clone(),
-                            self.password.clone(),
-                            self.config.session.clone(),
-                        );
-                        match res {
-                            Ok(_) => {
-                                let _ = fs::write(LAST_USER_USERNAME, self.username.clone());
-                                self.should_quit = true;
-                                return;
-                            }
-                            Err(_) => {
-                                self.username = String::with_capacity(USERNAME_CAP);
-                                self.password = String::with_capacity(PASSWORD_CAP);
-                                self.mode = Mode::EditingUsername;
-                                self.greetd.cancel();
+                        self.password.clear();
+                        self.greetd.cancel();
+                        self.should_quit = true;
+                        return;
+                    }
+                    '\x7F' => match self.mode {
+                        // backspace
+                        Mode::EditingUsername => {
+                            self.username.pop();
+                        }
+                        Mode::EditingPassword => {
+                            self.password.pop();
+                        }
+                    },
+                    '\t' => self.goto_next_mode(),
+                    '\r' => match self.mode {
+                        Mode::EditingUsername => {
+                            if !self.username.is_empty() {
+                                self.mode = Mode::EditingPassword;
                             }
                         }
-                    }
-                }
-            },
-            v => match self.mode {
-                Mode::EditingUsername => self.username.push(v as char),
-                Mode::EditingPassword => self.password.push(v as char),
-            },
+                        Mode::EditingPassword => {
+                            if self.password.is_empty() {
+                                self.username.clear();
+                                self.mode = Mode::EditingUsername;
+                            } else {
+                                let res = self.greetd.login(
+                                    self.username.clone(),
+                                    self.password.clone(),
+                                    self.config.session.clone(),
+                                );
+                                match res {
+                                    Ok(_) => {
+                                        let _ =
+                                            fs::write(LAST_USER_USERNAME, self.username.clone());
+                                        self.should_quit = true;
+                                        return;
+                                    }
+                                    Err(_) => {
+                                        self.username = String::with_capacity(USERNAME_CAP);
+                                        self.password = String::with_capacity(PASSWORD_CAP);
+                                        self.mode = Mode::EditingUsername;
+                                        self.greetd.cancel();
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    v => match self.mode {
+                        Mode::EditingUsername => self.username.push(v as char),
+                        Mode::EditingPassword => self.password.push(v as char),
+                    },
+                },
+                // Add more KeyEvent variants as needed
+            }
         }
     }
 
