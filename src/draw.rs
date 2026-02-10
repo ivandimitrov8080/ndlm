@@ -170,6 +170,54 @@ impl Font {
     }
 }
 
+#[cfg(feature = "cairo_text")]
+use cairo::{Context as CairoContext, Format, ImageSurface};
+#[cfg(feature = "cairo_text")]
+use pango::FontDescription;
+use pangocairo::functions::{create_layout, show_layout};
+#[cfg(feature = "cairo_text")]
+#[cfg(feature = "cairo_text")]
+pub fn draw_text_cairo(
+    framebuffer: &mut [u8],
+    dimensions: (u32, u32),
+    x: i32,
+    y: i32,
+    text: &str,
+    font: &str,
+    color: &Color,
+) {
+    let width = dimensions.0 as i32;
+    let height = dimensions.1 as i32;
+    let stride = width * 4;
+    // SAFETY: framebuffer is the raw framebuffer memory, properly sized.
+    let surface = ImageSurface::create_for_data(
+        unsafe {
+            std::slice::from_raw_parts_mut(framebuffer.as_mut_ptr(), (stride * height) as usize)
+        },
+        Format::ARgb32,
+        width,
+        height,
+        stride,
+    )
+    .expect("Could not create cairo surface");
+
+    let cr = CairoContext::new(&surface).unwrap();
+    cr.set_source_rgba(
+        color.red as f64,
+        color.green as f64,
+        color.blue as f64,
+        color.opacity as f64,
+    );
+
+    let layout = create_layout(&cr);
+    layout.set_text(text);
+    let font_desc = FontDescription::from_string(font);
+    layout.set_font_description(Some(&font_desc));
+    // Move to x/y and show text
+    cr.move_to(x as f64, y as f64);
+    show_layout(&cr, &layout);
+}
+
 // pub fn draw_box(buf: &mut Buffer<'_>, c: &Color, dim: (u32, u32)) -> Result<(), BufferError> {
 //     for x in 0..dim.0 {
 //         let _ = buf.put((x, 0), c);

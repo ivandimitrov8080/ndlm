@@ -87,12 +87,62 @@ impl<'a> LoginManager<'a> {
         let username = self.username.clone();
 
         let (x, y) = (offset.0 - 40, offset.1 - 10);
-        prompt_font.auto_draw_text(
-            &mut buf.offset((x, y))?,
-            &bg,
-            &username_color,
-            &format!("Username: {username}"),
-        )?;
+        #[cfg(feature = "cairo_text")]
+        {
+            // Use Cairo/Pango for username and password rendering -- avoid buffer double borrow
+            crate::draw::draw_text_cairo(
+                self.buf,
+                self.screen_size,
+                x as i32,
+                y as i32,
+                &format!("Username: {username}"),
+                "DejaVu Sans Mono 18",
+                &username_color,
+            );
+            crate::draw::draw_text_cairo(
+                self.buf,
+                self.screen_size,
+                x as i32,
+                (y as i32) + 20,
+                &format!("Password: {stars}"),
+                "DejaVu Sans Mono 18",
+                &password_color,
+            );
+            return Ok(());
+        }
+        #[cfg(not(feature = "cairo_text"))]
+        {
+            prompt_font.auto_draw_text(
+                &mut buf.offset((x, y))?,
+                &bg,
+                &username_color,
+                &format!("Username: {username}"),
+            )?;
+            prompt_font.auto_draw_text(
+                &mut buf.offset((x, y + 20))?,
+                &bg,
+                &password_color,
+                &format!("Password: {stars}"),
+            )?;
+        }
+        #[cfg(not(feature = "cairo_text"))]
+        {
+            prompt_font.auto_draw_text(
+                &mut buf.offset((x, y))?,
+                &bg,
+                &username_color,
+                &format!("Username: {username}"),
+            )?;
+        }
+        #[cfg(not(feature = "cairo_text"))]
+        {
+            prompt_font.auto_draw_text(
+                &mut buf.offset((x, y))?,
+                &bg,
+                &username_color,
+                &format!("Username: {username}"),
+            )?;
+        }
 
         prompt_font.auto_draw_text(
             &mut buf.offset((x, y + 20))?,
