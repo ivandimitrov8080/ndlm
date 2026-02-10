@@ -4,7 +4,7 @@ use std::{fs, io::Bytes};
 use crate::color::Color;
 use framebuffer::{Framebuffer, KdMode, VarScreeninfo};
 
-use crate::{buffer, greetd, Config, Error};
+use crate::{Config, Error, buffer, greetd};
 const USERNAME_CAP: usize = 64;
 const PASSWORD_CAP: usize = 64;
 

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use lazy_static::lazy_static;
-use rusttype::{point, Font as RustFont, Scale};
+use rusttype::{Font as RustFont, Scale, point};
 use thiserror::Error;
 
 pub static DEJAVUSANS_MONO_FONT_DATA: &[u8] = include_bytes!("../fonts/dejavu/DejaVuSansMono.ttf");

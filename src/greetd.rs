@@ -4,7 +4,7 @@ use std::fmt;
 use std::os::unix::net::UnixStream;
 use std::process;
 
-use greetd_ipc::{codec::SyncCodec, AuthMessageType, Request, Response};
+use greetd_ipc::{AuthMessageType, Request, Response, codec::SyncCodec};
 
 #[derive(Debug)]
 struct LoginError(String);
