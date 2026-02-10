@@ -68,11 +68,12 @@ impl<'a> LoginManager<'a> {
     }
 
     fn draw_prompt_surface(
-        surf: &crate::draw::FramebufferSurface,
+        surf: &mut crate::draw::FramebufferSurface,
         offset: (u32, u32),
         username: &str,
         password: &str,
         mode: Mode,
+        bg: &Color,
     ) {
         let mut stars = "".to_string();
         for _ in 0..password.len() {
@@ -83,20 +84,24 @@ impl<'a> LoginManager<'a> {
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
         let (x, y) = (offset.0 - 80, offset.1 - 40);
-        surf.draw_text(
-            x as i32,
-            y as i32,
+        // Fill only input region with theme color
+        surf.fill_input_region(x as i32, y as i32, 320, 56, bg);
+        // Draw username at y=0 in input region
+        surf.draw_text_region(
             &format!("Username: {username}"),
             "DejaVu Sans Mono 18",
             &username_color,
+            0,
         );
-        surf.draw_text(
-            x as i32,
-            (y as i32) + 20,
+        // Draw password at y=24 in input region
+        surf.draw_text_region(
             &format!("Password: {stars}"),
             "DejaVu Sans Mono 18",
             &password_color,
+            24,
         );
+        // Composite region
+        surf.composite_region_to_fb();
     }
 
     fn goto_next_mode(&mut self) {
@@ -112,19 +117,20 @@ impl<'a> LoginManager<'a> {
         let x = (self.screen_size.0 as f32 * xoff) as u32;
         let y = (self.screen_size.1 as f32 * yoff) as u32;
         // Create one surface, use for all draw calls in this frame
-        let mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
+        let mut mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
             .expect("could not create framebuffer surface");
         Self::clear_surface(
-            &mut_surface,
+            &mut mut_surface,
             &self.config.theme.module.background_start_color,
             self.screen_size,
         );
         Self::draw_prompt_surface(
-            &mut_surface,
+            &mut mut_surface,
             (x, y),
             &self.username,
             &self.password,
             self.mode,
+            &self.config.theme.module.background_start_color,
         );
         self.should_refresh = true;
     }
