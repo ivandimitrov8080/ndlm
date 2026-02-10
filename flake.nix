@@ -104,6 +104,7 @@
             inherit inputs pkgs;
             modules = [
               {
+                devenv.root = "/home/ivand/src/ndlm";
                 languages.rust = {
                   enable = true;
                 };
