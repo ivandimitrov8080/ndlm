@@ -72,7 +72,6 @@ impl<'a> LoginManager<'a> {
 
     fn draw_prompt(&mut self, offset: (u32, u32)) -> Result<(), Error> {
         let mut buf = buffer::Buffer::new(self.buf, self.screen_size);
-        let mut prompt_font = self.config.theme.module.font.clone();
         let bg = self.config.theme.module.background_start_color;
         buf.memset(&bg);
         let mut stars = "".to_string();
@@ -85,72 +84,26 @@ impl<'a> LoginManager<'a> {
         };
 
         let username = self.username.clone();
-
         let (x, y) = (offset.0 - 40, offset.1 - 10);
-        #[cfg(feature = "cairo_text")]
-        {
-            // Use Cairo/Pango for username and password rendering -- avoid buffer double borrow
-            crate::draw::draw_text_cairo(
-                self.buf,
-                self.screen_size,
-                x as i32,
-                y as i32,
-                &format!("Username: {username}"),
-                "DejaVu Sans Mono 18",
-                &username_color,
-            );
-            crate::draw::draw_text_cairo(
-                self.buf,
-                self.screen_size,
-                x as i32,
-                (y as i32) + 20,
-                &format!("Password: {stars}"),
-                "DejaVu Sans Mono 18",
-                &password_color,
-            );
-            return Ok(());
-        }
-        #[cfg(not(feature = "cairo_text"))]
-        {
-            prompt_font.auto_draw_text(
-                &mut buf.offset((x, y))?,
-                &bg,
-                &username_color,
-                &format!("Username: {username}"),
-            )?;
-            prompt_font.auto_draw_text(
-                &mut buf.offset((x, y + 20))?,
-                &bg,
-                &password_color,
-                &format!("Password: {stars}"),
-            )?;
-        }
-        #[cfg(not(feature = "cairo_text"))]
-        {
-            prompt_font.auto_draw_text(
-                &mut buf.offset((x, y))?,
-                &bg,
-                &username_color,
-                &format!("Username: {username}"),
-            )?;
-        }
-        #[cfg(not(feature = "cairo_text"))]
-        {
-            prompt_font.auto_draw_text(
-                &mut buf.offset((x, y))?,
-                &bg,
-                &username_color,
-                &format!("Username: {username}"),
-            )?;
-        }
-
-        prompt_font.auto_draw_text(
-            &mut buf.offset((x, y + 20))?,
-            &bg,
-            &password_color,
+        // Always use Cairo/Pango for username and password rendering (default)
+        crate::draw::draw_text(
+            self.buf,
+            self.screen_size,
+            x as i32,
+            y as i32,
+            &format!("Username: {username}"),
+            "DejaVu Sans Mono 18",
+            &username_color,
+        );
+        crate::draw::draw_text(
+            self.buf,
+            self.screen_size,
+            x as i32,
+            (y as i32) + 20,
             &format!("Password: {stars}"),
-        )?;
-
+            "DejaVu Sans Mono 18",
+            &password_color,
+        );
         Ok(())
     }
 

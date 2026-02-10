@@ -27,6 +27,3 @@ cairo-rs = "0.21.5"
 pango = "0.21.5"
 pangocairo = "0.21.5"
 
-[features]
-default = ["cairo_text"]
-cairo_text = []

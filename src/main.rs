@@ -4,10 +4,11 @@ use std::fs;
 use std::str::FromStr;
 
 use framebuffer::{Framebuffer, KdMode};
+use pango::FontDescription;
 use termion::raw::IntoRawMode;
 use thiserror::Error;
 
-use crate::{color::Color, draw::Font, manager::LoginManager};
+use crate::{color::Color, manager::LoginManager};
 
 mod buffer;
 mod color;
@@ -26,10 +27,10 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 struct Module {
-    font: Font,
-    title_font: Font,
+    font: FontDescription,
+    title_font: FontDescription,
     image_dir: String,
     dialog_horizontal_alignment: f32,
     dialog_vertical_alignment: f32,
@@ -41,6 +42,25 @@ struct Module {
     vertical_alignment: f32,
     background_start_color: Color,
     background_end_color: Color,
+}
+impl Default for Module {
+    fn default() -> Self {
+        Module {
+            font: FontDescription::from_string(""),
+            title_font: FontDescription::from_string(""),
+            image_dir: "".to_string(),
+            dialog_horizontal_alignment: 0f32,
+            dialog_vertical_alignment: 0f32,
+            title_horizontal_alignment: 0f32,
+            title_vertical_alignment: 0f32,
+            watermark_horizontal_alignment: 0f32,
+            watermark_vertical_alignment: 0f32,
+            horizontal_alignment: 0f32,
+            vertical_alignment: 0f32,
+            background_start_color: Color::default(),
+            background_end_color: Color::default(),
+        }
+    }
 }
 
 impl FromStr for Module {
@@ -58,8 +78,8 @@ impl FromStr for Module {
                     v = format!("0{}", value).parse().unwrap();
                 }
                 match key {
-                    "Font" => module.font = value.to_string().parse().unwrap(),
-                    "TitleFont" => module.title_font = value.to_string().parse().unwrap(),
+                    "Font" => module.font = FontDescription::from_string(value),
+                    "TitleFont" => module.title_font = FontDescription::from_string(value),
                     "ImageDir" => module.image_dir = value.to_string(),
                     "DialogHorizontalAlignment" => module.dialog_horizontal_alignment = v,
                     "DialogVerticalAlignment" => module.dialog_vertical_alignment = v,
