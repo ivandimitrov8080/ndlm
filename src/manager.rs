@@ -4,7 +4,7 @@ use std::{fs, io::Bytes};
 use crate::color::Color;
 use framebuffer::{Framebuffer, KdMode, VarScreeninfo};
 
-use crate::{Config, Error, greetd};
+use crate::{Config, greetd};
 const USERNAME_CAP: usize = 64;
 const PASSWORD_CAP: usize = 64;
 
@@ -63,16 +63,12 @@ impl<'a> LoginManager<'a> {
         }
     }
 
-    fn clear_surface(
-        surf: &crate::draw::FramebufferSurface<'_>,
-        bg: &Color,
-        screen_size: (u32, u32),
-    ) {
+    fn clear_surface(surf: &crate::draw::FramebufferSurface, bg: &Color, screen_size: (u32, u32)) {
         surf.fill_rect(0, 0, screen_size.0 as i32, screen_size.1 as i32, bg);
     }
 
     fn draw_prompt_surface(
-        surf: &crate::draw::FramebufferSurface<'_>,
+        surf: &crate::draw::FramebufferSurface,
         offset: (u32, u32),
         username: &str,
         password: &str,

@@ -13,15 +13,12 @@ pub enum DrawError {
     Cairo(#[from] cairo::Error),
 }
 
-pub struct FramebufferSurface<'a> {
-    framebuffer: &'a mut [u8],
-    pub dimensions: (u32, u32),
-    surface: ImageSurface,
+pub struct FramebufferSurface {
     context: CairoContext,
 }
 
-impl<'a> FramebufferSurface<'a> {
-    pub fn new(framebuffer: &'a mut [u8], dimensions: (u32, u32)) -> Result<Self, DrawError> {
+impl FramebufferSurface {
+    pub fn new(framebuffer: &mut [u8], dimensions: (u32, u32)) -> Result<Self, DrawError> {
         let width = dimensions.0 as i32;
         let height = dimensions.1 as i32;
         let stride = width * 4;
@@ -35,12 +32,7 @@ impl<'a> FramebufferSurface<'a> {
             stride,
         )?;
         let context = CairoContext::new(&surface).unwrap();
-        Ok(Self {
-            framebuffer,
-            dimensions,
-            surface,
-            context,
-        })
+        Ok(Self { context })
     }
 
     pub fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32, color: &Color) {
