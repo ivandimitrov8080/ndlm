@@ -82,7 +82,7 @@ impl<'a> LoginManager<'a> {
             Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
-        let (x, y) = (offset.0 - 40, offset.1 - 10);
+        let (x, y) = (offset.0 - 80, offset.1 - 40);
         surf.draw_text(
             x as i32,
             y as i32,
