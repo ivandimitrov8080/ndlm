@@ -10,7 +10,6 @@ use thiserror::Error;
 
 use crate::{color::Color, manager::LoginManager};
 
-mod buffer;
 mod color;
 mod draw;
 mod greetd;
@@ -19,8 +18,6 @@ mod manager;
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
-    #[error("Error performing buffer operation: {0}")]
-    Buffer(#[from] buffer::BufferError),
     #[error("Error performing draw operation: {0}")]
     Draw(#[from] draw::DrawError),
     #[error("I/O error: {0}")]

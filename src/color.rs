@@ -32,13 +32,7 @@ impl FromStr for Color {
         }
     }
 }
-
 impl Color {
     pub const WHITE: Self = rgb(1.0, 1.0, 1.0);
     pub const YELLOW: Self = rgb(0.75, 0.75, 0.25);
-
-    pub fn as_argb8888(&self) -> u32 {
-        let argb = [self.opacity, self.red, self.green, self.blue];
-        u32::from_be_bytes(argb.map(|x| (x * 255.0) as u8))
-    }
 }

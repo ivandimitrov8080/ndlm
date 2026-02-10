@@ -4,7 +4,7 @@ use std::{fs, io::Bytes};
 use crate::color::Color;
 use framebuffer::{Framebuffer, KdMode, VarScreeninfo};
 
-use crate::{Config, Error, buffer, greetd};
+use crate::{Config, Error, greetd};
 const USERNAME_CAP: usize = 64;
 const PASSWORD_CAP: usize = 64;
 
@@ -64,16 +64,31 @@ impl<'a> LoginManager<'a> {
     }
 
     fn clear(&mut self) {
-        let mut buf = buffer::Buffer::new(self.buf, self.screen_size);
         let bg = self.config.theme.module.background_start_color;
-        buf.memset(&bg);
+        // Use Cairo to fill the entire screen
+        crate::draw::fill_rect(
+            self.buf,
+            self.screen_size,
+            0,
+            0,
+            self.screen_size.0 as i32,
+            self.screen_size.1 as i32,
+            &bg,
+        );
         self.should_refresh = true;
     }
 
     fn draw_prompt(&mut self, offset: (u32, u32)) -> Result<(), Error> {
-        let mut buf = buffer::Buffer::new(self.buf, self.screen_size);
         let bg = self.config.theme.module.background_start_color;
-        buf.memset(&bg);
+        crate::draw::fill_rect(
+            self.buf,
+            self.screen_size,
+            0,
+            0,
+            self.screen_size.0 as i32,
+            self.screen_size.1 as i32,
+            &bg,
+        );
         let mut stars = "".to_string();
         for _ in 0..self.password.len() {
             stars += "*";
