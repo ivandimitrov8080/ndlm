@@ -63,63 +63,44 @@ impl<'a> LoginManager<'a> {
         }
     }
 
-    fn clear(&mut self) {
-        let bg = self.config.theme.module.background_start_color;
-        // Use Cairo to fill the entire screen
-        crate::draw::fill_rect(
-            self.buf,
-            self.screen_size,
-            0,
-            0,
-            self.screen_size.0 as i32,
-            self.screen_size.1 as i32,
-            &bg,
-        );
-        self.should_refresh = true;
+    fn clear_surface(
+        surf: &crate::draw::FramebufferSurface<'_>,
+        bg: &Color,
+        screen_size: (u32, u32),
+    ) {
+        surf.fill_rect(0, 0, screen_size.0 as i32, screen_size.1 as i32, bg);
     }
 
-    fn draw_prompt(&mut self, offset: (u32, u32)) -> Result<(), Error> {
-        let bg = self.config.theme.module.background_start_color;
-        crate::draw::fill_rect(
-            self.buf,
-            self.screen_size,
-            0,
-            0,
-            self.screen_size.0 as i32,
-            self.screen_size.1 as i32,
-            &bg,
-        );
+    fn draw_prompt_surface(
+        surf: &crate::draw::FramebufferSurface<'_>,
+        offset: (u32, u32),
+        username: &str,
+        password: &str,
+        mode: Mode,
+    ) {
         let mut stars = "".to_string();
-        for _ in 0..self.password.len() {
+        for _ in 0..password.len() {
             stars += "*";
         }
-        let (username_color, password_color) = match self.mode {
+        let (username_color, password_color) = match mode {
             Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
-
-        let username = self.username.clone();
         let (x, y) = (offset.0 - 40, offset.1 - 10);
-        // Always use Cairo/Pango for username and password rendering (default)
-        crate::draw::draw_text(
-            self.buf,
-            self.screen_size,
+        surf.draw_text(
             x as i32,
             y as i32,
             &format!("Username: {username}"),
             "DejaVu Sans Mono 18",
             &username_color,
         );
-        crate::draw::draw_text(
-            self.buf,
-            self.screen_size,
+        surf.draw_text(
             x as i32,
             (y as i32) + 20,
             &format!("Password: {stars}"),
             "DejaVu Sans Mono 18",
             &password_color,
         );
-        Ok(())
     }
 
     fn goto_next_mode(&mut self) {
@@ -134,7 +115,21 @@ impl<'a> LoginManager<'a> {
         let yoff = self.config.theme.module.dialog_vertical_alignment;
         let x = (self.screen_size.0 as f32 * xoff) as u32;
         let y = (self.screen_size.1 as f32 * yoff) as u32;
-        self.draw_prompt((x, y)).expect("unable to draw prompt");
+        // Create one surface, use for all draw calls in this frame
+        let mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
+            .expect("could not create framebuffer surface");
+        Self::clear_surface(
+            &mut_surface,
+            &self.config.theme.module.background_start_color,
+            self.screen_size,
+        );
+        Self::draw_prompt_surface(
+            &mut_surface,
+            (x, y),
+            &self.username,
+            &self.password,
+            self.mode,
+        );
         self.should_refresh = true;
     }
 
@@ -142,7 +137,7 @@ impl<'a> LoginManager<'a> {
         self.stdin_bytes
             .next()
             .and_then(Result::ok)
-            .unwrap_or_else(quit)
+            .unwrap_or_else(|| quit())
     }
 
     fn handle_keyboard(&mut self) {
@@ -210,7 +205,14 @@ impl<'a> LoginManager<'a> {
     }
 
     fn setup(&mut self) {
-        self.clear();
+        // Clear and draw using the FramebufferSurface
+        let mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
+            .expect("could not create framebuffer surface");
+        Self::clear_surface(
+            &mut_surface,
+            &self.config.theme.module.background_start_color,
+            self.screen_size,
+        );
         self.draw();
         match fs::read_to_string(LAST_USER_USERNAME) {
             Ok(user) => {
@@ -228,12 +230,12 @@ impl<'a> LoginManager<'a> {
             self.handle_keyboard();
             self.refresh();
             if self.should_quit {
-                return;
+                break;
             }
         }
     }
 }
-fn quit() -> u8 {
+fn quit() -> ! {
     Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
     std::process::exit(1);
 }
