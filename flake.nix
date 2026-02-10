@@ -112,6 +112,7 @@
                   pkg-config
                   cairo
                   pango.dev
+                  cargo-edit
                 ];
                 git-hooks.hooks = {
                   nixfmt.enable = true;
