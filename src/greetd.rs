@@ -56,7 +56,11 @@ impl GreetD {
                 auth_message_type,
             } => match auth_message_type {
                 AuthMessageType::Secret => {
-                    let _ = Request::StartSession { cmd }.write_to(&mut self.stream);
+                    let _ = Request::StartSession {
+                        cmd,
+                        env: Vec::new(),
+                    }
+                    .write_to(&mut self.stream);
                     let resp = Response::read_from(&mut self.stream)?;
                     match resp {
                         Response::Success => Ok(()),
@@ -68,7 +72,11 @@ impl GreetD {
                 _ => Err(Box::new(LoginError("Wrong username".into()))),
             },
             Response::Success => {
-                let _ = Request::StartSession { cmd }.write_to(&mut self.stream);
+                let _ = Request::StartSession {
+                    cmd,
+                    env: Vec::new(),
+                }
+                .write_to(&mut self.stream);
                 let _ = Response::read_from(&mut self.stream)?;
                 Ok(())
             }
