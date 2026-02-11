@@ -2,7 +2,6 @@ use std::io::{Read, StdinLock};
 use std::{fs, io::Bytes};
 
 use crate::color::Color;
-use framebuffer::{Framebuffer, KdMode, VarScreeninfo};
 
 use crate::{Config, greetd};
 const USERNAME_CAP: usize = 64;
@@ -11,8 +10,6 @@ const PASSWORD_CAP: usize = 64;
 const LAST_USER_USERNAME: &str = "/var/cache/ndlm/lastuser";
 
 // from linux/fb.h
-const FB_ACTIVATE_NOW: u32 = 0;
-const FB_ACTIVATE_FORCE: u32 = 128;
 
 #[derive(PartialEq, Copy, Clone)]
 enum Mode {
@@ -20,47 +17,72 @@ enum Mode {
     EditingPassword,
 }
 
+pub struct Card(pub std::fs::File);
+
+impl std::os::unix::io::AsFd for Card {
+    fn as_fd(&self) -> std::os::unix::io::BorrowedFd<'_> {
+        self.0.as_fd()
+    }
+}
+
+impl std::os::unix::io::AsRawFd for Card {
+    fn as_raw_fd(&self) -> std::os::unix::io::RawFd {
+        self.0.as_raw_fd()
+    }
+}
+
+use drm::Device;
+impl Device for Card {}
+
+use drm::control::Device as ControlDevice;
+impl ControlDevice for Card {}
+
 pub struct LoginManager<'a> {
     buf: &'a mut [u8],
-    device: &'a fs::File,
     screen_size: (u32, u32),
     mode: Mode,
     greetd: greetd::GreetD,
     config: Config,
-    var_screen_info: &'a VarScreeninfo,
     should_refresh: bool,
     stdin_bytes: Bytes<StdinLock<'static>>,
     username: String,
     password: String,
     should_quit: bool,
+    drm_card: Option<&'a crate::manager::Card>, // DRM device handle
+    fb_id: u32,
+    crtc_id: u32,
 }
 
 impl<'a> LoginManager<'a> {
-    pub fn new(fb: &'a mut Framebuffer, config: Config) -> Self {
+    pub fn new(
+        buf: &'a mut [u8],
+        config: Config,
+        width: u32,
+        height: u32,
+        drm_card: &'a crate::manager::Card,
+        fb_id: u32,
+        crtc_id: u32,
+    ) -> Self {
         Self {
-            buf: &mut fb.frame,
-            device: &fb.device,
-            screen_size: (fb.var_screen_info.xres, fb.var_screen_info.yres),
+            buf,
+            screen_size: (width, height),
             mode: Mode::EditingUsername,
             greetd: greetd::GreetD::new(),
-            var_screen_info: &fb.var_screen_info,
             should_refresh: false,
             stdin_bytes: std::io::stdin().lock().bytes(),
             username: String::with_capacity(USERNAME_CAP),
             password: String::with_capacity(PASSWORD_CAP),
             config,
             should_quit: false,
+            drm_card: Some(drm_card),
+            fb_id,
+            crtc_id,
         }
     }
 
     fn refresh(&mut self) {
-        if self.should_refresh {
-            self.should_refresh = false;
-            let mut screeninfo = self.var_screen_info.clone();
-            screeninfo.activate |= FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
-            Framebuffer::put_var_screeninfo(self.device, &screeninfo)
-                .expect("Failed to refresh framebuffer");
-        }
+        // No-op with DRM; will use page flip
+        self.should_refresh = false;
     }
 
     fn clear_surface(surf: &crate::draw::FramebufferSurface, bg: &Color, screen_size: (u32, u32)) {
@@ -133,6 +155,22 @@ impl<'a> LoginManager<'a> {
             &self.config.theme.module.background_start_color,
         );
         self.should_refresh = true;
+
+        // DRM page flip
+        if let Some(card) = self.drm_card {
+            use drm::control::Device as _;
+            card.page_flip(
+                drm::control::crtc::Handle::from(
+                    std::num::NonZeroU32::new(self.crtc_id).expect("CRTC id must be nonzero"),
+                ),
+                drm::control::framebuffer::Handle::from(
+                    std::num::NonZeroU32::new(self.fb_id).expect("FB id must be nonzero"),
+                ),
+                drm::control::PageFlipFlags::empty(),
+                None,
+            )
+            .expect("DRM page flip failed");
+        }
     }
 
     fn read_byte(&mut self) -> u8 {
@@ -238,6 +276,5 @@ impl<'a> LoginManager<'a> {
     }
 }
 fn quit() -> ! {
-    Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
     std::process::exit(1);
 }

@@ -3,7 +3,6 @@
 use std::fs;
 use std::str::FromStr;
 
-use framebuffer::{Framebuffer, KdMode};
 use pango::FontDescription;
 use termion::raw::IntoRawMode;
 use thiserror::Error;
@@ -171,12 +170,59 @@ fn parse_args() -> Config {
 }
 
 fn main() {
-    let mut framebuffer = Framebuffer::new("/dev/fb0").expect("unable to open framebuffer device");
+    // DRM device opening
+    use drm::control::Device as ControlDevice;
+
+    use std::fs::File;
+
+    // Open DRM device
+
+    let drm_file = File::open("/dev/dri/card0").expect("unable to open DRM device");
+    let card = crate::manager::Card(drm_file);
+
+    // Get available connectors/modes (find connected display)
+    let res_handles = card
+        .resource_handles()
+        .expect("Failed to get DRM resources");
+    let connector_handle = res_handles.connectors()[0]; // TODO: enumerate for active
+    let connector_info = card
+        .get_connector(connector_handle, false)
+        .expect("Failed to get connector info");
+    let crtc_handle = res_handles.crtcs()[0];
+    let mode = connector_info.modes()[0]; // TODO: choose best mode
+
+    let (width, height) = (mode.size().0 as u32, mode.size().1 as u32);
+
+    // Allocate DumbBuffer
+    use drm_fourcc::DrmFourcc;
+
+    let dbuf = card
+        .create_dumb_buffer((width, height), DrmFourcc::Xrgb8888, 32)
+        .expect("Failed to allocate dumb buffer");
+    let fb = card
+        .add_framebuffer(&dbuf, 24, 32)
+        .expect("Failed to add framebuffer");
+
+    // Map DumbBuffer to memory
+    let mut dbuf_mut = dbuf;
+    let mut map = card
+        .map_dumb_buffer(&mut dbuf_mut)
+        .expect("Failed to map dumb buffer");
+
     let raw = std::io::stdout()
         .into_raw_mode()
         .expect("unable to enter raw mode");
-    Framebuffer::set_kd_mode(KdMode::Graphics).expect("unable to enter graphics mode");
-    LoginManager::new(&mut framebuffer, parse_args()).start();
-    Framebuffer::set_kd_mode(KdMode::Text).expect("unable to leave graphics mode");
+
+    // Pass mapped buffer, device, and screen size to LoginManager
+    LoginManager::new(
+        &mut map,
+        parse_args(),
+        width,
+        height,
+        &card,
+        fb.into(),
+        crtc_handle.into(),
+    )
+    .start();
     drop(raw);
 }
