@@ -1,5 +1,7 @@
-use std::io::{Read, StdinLock};
-use std::{fs, io::Bytes};
+use libc::{POLLIN, POLLPRI, poll, pollfd};
+use std::fs;
+use std::io::{Bytes, Read, StdinLock};
+use std::os::unix::io::AsRawFd;
 
 use crate::color::Color;
 
@@ -80,8 +82,24 @@ impl<'a> LoginManager<'a> {
         }
     }
 
+    fn wait_for_drm_event(&self) {
+        if let Some(card) = self.drm_card {
+            let fd = card.as_raw_fd();
+            let mut fds = [pollfd {
+                fd,
+                events: (POLLIN | POLLPRI) as i16,
+                revents: 0,
+            }];
+            let res = unsafe { poll(fds.as_mut_ptr(), 1, -1) }; // -1 = infinite timeout
+            if res > 0 && (fds[0].revents & (POLLIN | POLLPRI)) != 0 {
+                let _ = card.receive_events();
+            } else if res < 0 {
+                eprintln!("poll() error while waiting for drm event");
+            }
+        }
+    }
+
     fn refresh(&mut self) {
-        // No-op with DRM; will use page flip
         self.should_refresh = false;
     }
 
@@ -106,23 +124,19 @@ impl<'a> LoginManager<'a> {
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
         let (x, y) = (offset.0 - 80, offset.1 - 40);
-        // Fill only input region with theme color
         surf.fill_input_region(x as i32, y as i32, 320, 56, bg);
-        // Draw username at y=0 in input region
         surf.draw_text_region(
             &format!("Username: {username}"),
             "DejaVu Sans Mono 18",
             &username_color,
             0,
         );
-        // Draw password at y=24 in input region
         surf.draw_text_region(
             &format!("Password: {stars}"),
             "DejaVu Sans Mono 18",
             &password_color,
             24,
         );
-        // Composite region
         surf.composite_region_to_fb();
     }
 
@@ -138,7 +152,6 @@ impl<'a> LoginManager<'a> {
         let yoff = self.config.theme.module.dialog_vertical_alignment;
         let x = (self.screen_size.0 as f32 * xoff) as u32;
         let y = (self.screen_size.1 as f32 * yoff) as u32;
-        // Create one surface, use for all draw calls in this frame
         let mut mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
             .expect("could not create framebuffer surface");
         Self::clear_surface(
@@ -155,8 +168,6 @@ impl<'a> LoginManager<'a> {
             &self.config.theme.module.background_start_color,
         );
         self.should_refresh = true;
-
-        // DRM page flip
         if let Some(card) = self.drm_card {
             use drm::control::Device as _;
             card.page_flip(
@@ -166,7 +177,7 @@ impl<'a> LoginManager<'a> {
                 drm::control::framebuffer::Handle::from(
                     std::num::NonZeroU32::new(self.fb_id).expect("FB id must be nonzero"),
                 ),
-                drm::control::PageFlipFlags::empty(),
+                drm::control::PageFlipFlags::EVENT,
                 None,
             )
             .expect("DRM page flip failed");
@@ -183,12 +194,10 @@ impl<'a> LoginManager<'a> {
     fn handle_keyboard(&mut self) {
         match self.read_byte() as char {
             '\x15' | '\x0B' => match self.mode {
-                // ctrl-k/ctrl-u
                 Mode::EditingUsername => self.username.clear(),
                 Mode::EditingPassword => self.password.clear(),
             },
             '\x03' | '\x04' => {
-                // ctrl-c/ctrl-D
                 self.username.clear();
                 self.password.clear();
                 self.greetd.cancel();
@@ -196,7 +205,6 @@ impl<'a> LoginManager<'a> {
                 return;
             }
             '\x7F' => match self.mode {
-                // backspace
                 Mode::EditingUsername => {
                     self.username.pop();
                 }
@@ -245,7 +253,6 @@ impl<'a> LoginManager<'a> {
     }
 
     fn setup(&mut self) {
-        // Clear and draw using the FramebufferSurface
         let mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
             .expect("could not create framebuffer surface");
         Self::clear_surface(
@@ -254,6 +261,7 @@ impl<'a> LoginManager<'a> {
             self.screen_size,
         );
         self.draw();
+        self.wait_for_drm_event(); // Wait for initial flip event
         match fs::read_to_string(LAST_USER_USERNAME) {
             Ok(user) => {
                 self.username = user;
@@ -267,6 +275,7 @@ impl<'a> LoginManager<'a> {
         self.setup();
         loop {
             self.draw();
+            self.wait_for_drm_event(); // Wait before next draw/flip
             self.handle_keyboard();
             self.refresh();
             if self.should_quit {
@@ -275,6 +284,7 @@ impl<'a> LoginManager<'a> {
         }
     }
 }
+
 fn quit() -> ! {
     std::process::exit(1);
 }
