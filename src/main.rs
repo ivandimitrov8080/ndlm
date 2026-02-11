@@ -175,11 +175,29 @@ fn main() {
 
     // Open DRM device
 
-    let drm_file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open("/dev/dri/card0")
-        .expect("unable to open DRM device for RW");
+    // AUTO-DETECT /dev/dri/card{x}
+    let drm_file = {
+        use std::fs;
+        let dri_dir = "/dev/dri";
+        let mut card_path = None;
+        if let Ok(entries) = fs::read_dir(dri_dir) {
+            for entry in entries.flatten() {
+                let fname = entry.file_name();
+                if fname.to_string_lossy().starts_with("card") {
+                    let fullpath = entry.path();
+                    if let Ok(file) = fs::OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .open(&fullpath)
+                    {
+                        card_path = Some(file);
+                        break;
+                    }
+                }
+            }
+        }
+        card_path.expect("unable to auto-detect or open any DRM card device in /dev/dri")
+    };
 
     // --- DRM master acquisition ---
     use libc::{c_void, ioctl};
