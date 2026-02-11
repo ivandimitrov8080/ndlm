@@ -1,17 +1,19 @@
 [package]
 name = "ndlm"
 version = "0.1.0"
-authors = ["Balint Csergo <ohai@deathowl.com>", "Ivan Dimitrov <ivan@idimitrov.dev>"]
+authors = [
+  "Balint Csergo <ohai@deathowl.com>",
+  "Ivan Dimitrov <ivan@idimitrov.dev>"
+]
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-framebuffer = "0.3.1"
-termion = "4.0.6"
-greetd_ipc = { version = "0.10.3", features = ["sync-codec"] }
-thiserror = "2.0.18"
 cairo-rs = "0.21.5"
+framebuffer = "0.3.1"
+greetd_ipc = { version = "0.10.3", features = ["sync-codec"] }
 pango = "0.21.5"
 pangocairo = "0.21.5"
-
+termion = "4.0.6"
+thiserror = "2.0.18"
