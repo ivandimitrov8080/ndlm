@@ -173,11 +173,30 @@ fn main() {
     // DRM device opening
     use drm::control::Device as ControlDevice;
 
-    use std::fs::File;
-
     // Open DRM device
 
-    let drm_file = File::open("/dev/dri/card0").expect("unable to open DRM device");
+    let drm_file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/dri/card0")
+        .expect("unable to open DRM device for RW");
+
+    // --- DRM master acquisition ---
+    use libc::{c_void, ioctl};
+    use std::os::unix::io::AsRawFd;
+    // Official value from <drm/drm.h>: #define DRM_IOCTL_SET_MASTER _IO('d', 0x1e) -> 0x644e
+    const DRM_IOCTL_SET_MASTER: libc::c_ulong = 0x644e;
+
+    let fd = drm_file.as_raw_fd();
+    let _ = unsafe {
+        ioctl(
+            fd,
+            DRM_IOCTL_SET_MASTER,
+            std::ptr::null_mut() as *mut c_void,
+        )
+    };
+    // --- END drm master acquisition ---
+
     let card = crate::manager::Card(drm_file);
 
     // Get available connectors/modes (find connected display)
@@ -205,9 +224,8 @@ fn main() {
 
     // Map DumbBuffer to memory
     let mut dbuf_mut = dbuf;
-    let mut map = card
-        .map_dumb_buffer(&mut dbuf_mut)
-        .expect("Failed to map dumb buffer");
+    let map_result = card.map_dumb_buffer(&mut dbuf_mut);
+    let mut map = map_result.expect("Failed to map dumb buffer");
 
     let raw = std::io::stdout()
         .into_raw_mode()

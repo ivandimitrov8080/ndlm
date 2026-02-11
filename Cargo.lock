@@ -336,6 +336,7 @@ dependencies = [
  "drm",
  "drm-fourcc",
  "greetd_ipc",
+ "libc",
  "pango",
  "pangocairo",
  "termion",
