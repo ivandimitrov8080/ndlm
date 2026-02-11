@@ -45,7 +45,6 @@ pub struct LoginManager<'a> {
     mode: Mode,
     greetd: greetd::GreetD,
     config: Config,
-    should_refresh: bool,
     stdin_bytes: Bytes<StdinLock<'static>>,
     username: String,
     password: String,
@@ -70,7 +69,6 @@ impl<'a> LoginManager<'a> {
             screen_size: (width, height),
             mode: Mode::EditingUsername,
             greetd: greetd::GreetD::new(),
-            should_refresh: false,
             stdin_bytes: std::io::stdin().lock().bytes(),
             username: String::with_capacity(USERNAME_CAP),
             password: String::with_capacity(PASSWORD_CAP),
@@ -87,7 +85,7 @@ impl<'a> LoginManager<'a> {
             let fd = card.as_raw_fd();
             let mut fds = [pollfd {
                 fd,
-                events: (POLLIN | POLLPRI) as i16,
+                events: (POLLIN | POLLPRI),
                 revents: 0,
             }];
             let res = unsafe { poll(fds.as_mut_ptr(), 1, -1) }; // -1 = infinite timeout
@@ -97,10 +95,6 @@ impl<'a> LoginManager<'a> {
                 eprintln!("poll() error while waiting for drm event");
             }
         }
-    }
-
-    fn refresh(&mut self) {
-        self.should_refresh = false;
     }
 
     fn clear_surface(surf: &crate::draw::FramebufferSurface, bg: &Color, screen_size: (u32, u32)) {
@@ -155,7 +149,7 @@ impl<'a> LoginManager<'a> {
         let mut mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
             .expect("could not create framebuffer surface");
         Self::clear_surface(
-            &mut mut_surface,
+            &mut_surface,
             &self.config.theme.module.background_start_color,
             self.screen_size,
         );
@@ -167,7 +161,6 @@ impl<'a> LoginManager<'a> {
             self.mode,
             &self.config.theme.module.background_start_color,
         );
-        self.should_refresh = true;
         if let Some(card) = self.drm_card {
             use drm::control::Device as _;
             card.page_flip(
@@ -202,7 +195,6 @@ impl<'a> LoginManager<'a> {
                 self.password.clear();
                 self.greetd.cancel();
                 self.should_quit = true;
-                return;
             }
             '\x7F' => match self.mode {
                 Mode::EditingUsername => {
@@ -233,7 +225,6 @@ impl<'a> LoginManager<'a> {
                             Ok(_) => {
                                 let _ = fs::write(LAST_USER_USERNAME, self.username.clone());
                                 self.should_quit = true;
-                                return;
                             }
                             Err(_) => {
                                 self.username = String::with_capacity(USERNAME_CAP);
@@ -246,8 +237,8 @@ impl<'a> LoginManager<'a> {
                 }
             },
             v => match self.mode {
-                Mode::EditingUsername => self.username.push(v as char),
-                Mode::EditingPassword => self.password.push(v as char),
+                Mode::EditingUsername => self.username.push(v),
+                Mode::EditingPassword => self.password.push(v),
             },
         }
     }
@@ -262,12 +253,9 @@ impl<'a> LoginManager<'a> {
         );
         self.draw();
         self.wait_for_drm_event(); // Wait for initial flip event
-        match fs::read_to_string(LAST_USER_USERNAME) {
-            Ok(user) => {
-                self.username = user;
-                self.mode = Mode::EditingPassword;
-            }
-            Err(_) => {}
+        if let Ok(user) = fs::read_to_string(LAST_USER_USERNAME) {
+            self.username = user;
+            self.mode = Mode::EditingPassword;
         };
     }
 
@@ -277,7 +265,6 @@ impl<'a> LoginManager<'a> {
             self.draw();
             self.wait_for_drm_event(); // Wait before next draw/flip
             self.handle_keyboard();
-            self.refresh();
             if self.should_quit {
                 break;
             }
