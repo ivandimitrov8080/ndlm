@@ -66,7 +66,7 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
-          default = pkgs.rustPlatform.buildRustPackage {
+          default = pkgs.rustPlatform.buildRustPackage rec {
             pname = "ndlm";
             version = "1.1.0";
 
@@ -88,6 +88,7 @@
               description = "Not (so) dumb login manager";
               homepage = "https://github.com/ivandimitrov8080/ndlm";
               license = pkgs.lib.licenses.mit;
+              mainProgram = pname;
             };
           };
           interactive = self.checks.${system}.default.driverInteractive;
