@@ -115,15 +115,15 @@
                   pango.dev
                   cargo-edit
                 ];
-                git-hooks.hooks = {
-                  nixfmt.enable = true;
-                  deadnix.enable = true;
-                  statix.enable = true;
-                  rustfmt.enable = true;
-                  rustfmt.settings.config = {
-                    edition = "2024";
-                  };
-                };
+                # git-hooks.hooks = {
+                #   nixfmt.enable = true;
+                #   deadnix.enable = true;
+                #   statix.enable = true;
+                #   rustfmt.enable = true;
+                #   rustfmt.settings.config = {
+                #     edition = "2024";
+                #   };
+                # };
               }
             ];
           };
