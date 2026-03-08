@@ -91,8 +91,6 @@
               mainProgram = pname;
             };
           };
-          interactive = self.checks.${system}.default.driverInteractive;
-          inherit (self.nixosConfigurations.default.config.system.build) vm;
         }
       );
       devShells = eachSystem (
@@ -135,7 +133,7 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
-          default = pkgs.testers.runNixOSTest {
+          integrationTest = pkgs.testers.runNixOSTest {
             name = "test";
             nodes = {
               machine = test-vm;
@@ -145,11 +143,13 @@
               ''
                 machine.wait_for_unit("multi-user.target");
                 machine.send_chars("test\ntest\n");
-                machine.sleep(1)
+                machine.sleep(2)
                 machine.succeed("loginctl list-sessions | grep test");
               '';
           };
         }
+        // self.packages.${system}
+        // self.devShells.${system}
       );
       formatter = eachSystem (
         system:
