@@ -11,10 +11,11 @@ edition = "2024"
 
 [dependencies]
 cairo-rs = "0.21.5"
-drm = "0.14.1"
+drm = "0.14.2"
 drm-fourcc = "2.2.0"
+evdev = "0.13.2"
 greetd_ipc = { version = "0.10.3", features = ["sync-codec"] }
-libc = "0.2.181"
+libc = "0.2.183"
 pango = "0.21.5"
 pangocairo = "0.21.5"
 termion = "4.0.6"
