@@ -1,9 +1,9 @@
-# Not (so) Dumb Login Manager
+# Not (so) Dummy Login Manager
 
 
 
 A stupidly simple graphical login manager. 
-Uses framebuffer, so You wont have to run a wayland session to bootstrap your wayland session (unlike gtkgreet)
+Uses DRM, so You wont have to run a wayland session to bootstrap your wayland session (unlike gtkgreet)
 
 This is a greetd frontend.
 
