@@ -116,7 +116,7 @@ impl<'a> LoginManager<'a> {
             Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
-        let (x, y) = (offset.0 - 80, offset.1 - 40);
+        let (x, y) = (offset.0 - 120, offset.1 - 40);
         surf.fill_input_region(x as i32, y as i32, 320, 56, bg);
         surf.draw_text_region(&format!("Username: {username}"), &font, &username_color, 0);
         surf.draw_text_region(&format!("Password: {stars}"), &font, &password_color, 24);
