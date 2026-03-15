@@ -109,10 +109,7 @@ impl<'a> LoginManager<'a> {
         mode: Mode,
         bg: &Color,
     ) {
-        let mut stars = "".to_string();
-        for _ in 0..password.len() {
-            stars += "*";
-        }
+        let stars = "*".repeat(password.len());
         let (username_color, password_color) = match mode {
             Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
