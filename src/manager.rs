@@ -1,4 +1,5 @@
 use libc::{POLLIN, POLLPRI, poll, pollfd};
+use pango::FontDescription;
 use std::fs;
 use std::io::{Bytes, Read, StdinLock};
 use std::os::unix::io::AsRawFd;
@@ -110,24 +111,15 @@ impl<'a> LoginManager<'a> {
         bg: &Color,
     ) {
         let stars = "*".repeat(password.len());
+        let font = FontDescription::from_string("DejaVu Sans Mono 18");
         let (username_color, password_color) = match mode {
             Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
         let (x, y) = (offset.0 - 80, offset.1 - 40);
         surf.fill_input_region(x as i32, y as i32, 320, 56, bg);
-        surf.draw_text_region(
-            &format!("Username: {username}"),
-            "DejaVu Sans Mono 18",
-            &username_color,
-            0,
-        );
-        surf.draw_text_region(
-            &format!("Password: {stars}"),
-            "DejaVu Sans Mono 18",
-            &password_color,
-            24,
-        );
+        surf.draw_text_region(&format!("Username: {username}"), &font, &username_color, 0);
+        surf.draw_text_region(&format!("Password: {stars}"), &font, &password_color, 24);
         surf.composite_region_to_fb();
     }
 

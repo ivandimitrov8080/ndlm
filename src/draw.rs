@@ -77,7 +77,13 @@ impl FramebufferSurface {
         let _ = ctx.fill();
     }
 
-    pub fn draw_text_region(&mut self, text: &str, font: &str, color: &Color, y_offset: i32) {
+    pub fn draw_text_region(
+        &mut self,
+        text: &str,
+        font: &FontDescription,
+        color: &Color,
+        y_offset: i32,
+    ) {
         if let Some(ctx) = self.region_context.as_mut() {
             ctx.set_source_rgba(
                 color.red as f64,
@@ -87,8 +93,7 @@ impl FramebufferSurface {
             );
             let layout = create_layout(ctx);
             layout.set_text(text);
-            let font_desc = FontDescription::from_string(font);
-            layout.set_font_description(Some(&font_desc));
+            layout.set_font_description(Some(font));
             ctx.move_to(0.0, y_offset as f64);
             show_layout(ctx, &layout);
         }
