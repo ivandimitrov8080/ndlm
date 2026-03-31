@@ -85,7 +85,7 @@
             };
 
             meta = {
-              description = "Not (so) dumb login manager";
+              description = "Not (so) dummy login manager";
               homepage = "https://github.com/ivandimitrov8080/ndlm";
               license = pkgs.lib.licenses.mit;
               mainProgram = pname;
