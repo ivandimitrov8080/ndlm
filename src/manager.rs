@@ -378,12 +378,11 @@ impl<'a> LoginManager<'a> {
             self.username = user;
             self.mode = Mode::EditingPassword;
         };
-        if self.config.session.is_empty() {
-            if let Ok(session_name) = fs::read_to_string(LAST_SESSION_NAME) {
-                if let Some(session) = self.sessions.iter().find(|s| s.name == session_name) {
-                    self.current_session = session.clone();
-                }
-            }
+        if self.config.session.is_empty()
+            && let Ok(session_name) = fs::read_to_string(LAST_SESSION_NAME)
+            && let Some(session) = self.sessions.iter().find(|s| s.name == session_name)
+        {
+            self.current_session = session.clone();
         };
     }
 

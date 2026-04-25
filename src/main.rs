@@ -210,7 +210,7 @@ fn main() {
         ioctl(
             fd,
             DRM_IOCTL_SET_MASTER,
-            std::ptr::null_mut() as *mut c_void,
+            std::ptr::null_mut::<*mut c_void>(),
         )
     };
     // --- END drm master acquisition ---
