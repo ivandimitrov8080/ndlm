@@ -14,6 +14,7 @@ const USERNAME_CAP: usize = 64;
 const PASSWORD_CAP: usize = 64;
 
 const LAST_USER_USERNAME: &str = "/var/cache/ndlm/lastuser";
+const LAST_SESSION_NAME: &str = "/var/cache/ndlm/lastsession";
 
 // from linux/fb.h
 
@@ -117,7 +118,7 @@ pub struct LoginManager<'a> {
     fb_id: u32,
     crtc_id: u32,
     sessions: Vec<Session>,
-    selected_session_idx: usize,
+    current_session: Session,
 }
 
 impl<'a> LoginManager<'a> {
@@ -153,6 +154,14 @@ impl<'a> LoginManager<'a> {
             0
         };
 
+        let current_session = sessions
+            .get(selected_session_idx)
+            .cloned()
+            .unwrap_or_else(|| Session {
+                name: "Default".to_string(),
+                exec: config.session.clone(),
+            });
+
         Self {
             buf,
             screen_size: (width, height),
@@ -167,7 +176,7 @@ impl<'a> LoginManager<'a> {
             fb_id,
             crtc_id,
             sessions,
-            selected_session_idx,
+            current_session,
         }
     }
 
@@ -224,11 +233,10 @@ impl<'a> LoginManager<'a> {
             let session_y_offset = 56 + 10; // 10px below password field
 
             if self.sessions.len() == 1 {
-                let text = format!("Session: {}", self.sessions[0].name);
+                let text = format!("Session: {}", self.current_session.name);
                 surf.draw_text_region(&text, &font_small, &Color::YELLOW, session_y_offset);
             } else {
-                let curr_name = &self.sessions[self.selected_session_idx].name;
-                let text = format!("Session (←/→): {}", curr_name);
+                let text = format!("Session (←/→): {}", self.current_session.name);
                 surf.draw_text_region(&text, &font_small, &Color::YELLOW, session_y_offset);
             }
         }
@@ -277,22 +285,31 @@ impl<'a> LoginManager<'a> {
 
         match key {
             Key::Left => {
-                if !self.sessions.is_empty() {
-                    self.selected_session_idx = if self.selected_session_idx == 0 {
+                if let Some(pos) = self
+                    .sessions
+                    .iter()
+                    .position(|s| s.name == self.current_session.name)
+                {
+                    let new_idx = if pos == 0 {
                         self.sessions.len() - 1
                     } else {
-                        self.selected_session_idx - 1
-                    }
+                        pos - 1
+                    };
+                    self.current_session = self.sessions[new_idx].clone();
                 }
             }
             Key::Right => {
-                if !self.sessions.is_empty() {
-                    self.selected_session_idx =
-                        if self.selected_session_idx + 1 == self.sessions.len() {
-                            0
-                        } else {
-                            self.selected_session_idx + 1
-                        }
+                if let Some(pos) = self
+                    .sessions
+                    .iter()
+                    .position(|s| s.name == self.current_session.name)
+                {
+                    let new_idx = if pos + 1 == self.sessions.len() {
+                        0
+                    } else {
+                        pos + 1
+                    };
+                    self.current_session = self.sessions[new_idx].clone();
                 }
             }
             Key::Ctrl('c') | Key::Ctrl('d') => {
@@ -321,21 +338,16 @@ impl<'a> LoginManager<'a> {
                         self.username.clear();
                         self.mode = Mode::EditingUsername;
                     } else {
-                        // Use selected session's exec command
-                        let session_cmd = if !self.sessions.is_empty() {
-                            self.sessions[self.selected_session_idx].exec.clone()
-                        } else {
-                            self.config.session.clone()
-                        };
-
                         let res = self.greetd.login(
                             self.username.clone(),
                             self.password.clone(),
-                            session_cmd,
+                            self.current_session.exec.clone(),
                         );
                         match res {
                             Ok(_) => {
                                 let _ = fs::write(LAST_USER_USERNAME, self.username.clone());
+                                let _ =
+                                    fs::write(LAST_SESSION_NAME, self.current_session.name.clone());
                                 self.should_quit = true;
                             }
                             Err(_) => {
@@ -365,6 +377,13 @@ impl<'a> LoginManager<'a> {
         if let Ok(user) = fs::read_to_string(LAST_USER_USERNAME) {
             self.username = user;
             self.mode = Mode::EditingPassword;
+        };
+        if self.config.session.is_empty() {
+            if let Ok(session_name) = fs::read_to_string(LAST_SESSION_NAME) {
+                if let Some(session) = self.sessions.iter().find(|s| s.name == session_name) {
+                    self.current_session = session.clone();
+                }
+            }
         };
     }
 

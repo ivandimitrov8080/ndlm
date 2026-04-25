@@ -26,6 +26,7 @@
         {
           system.stateVersion = "25.11";
           programs.sway.enable = true;
+          programs.hyprland.enable = true;
           services.greetd = {
             enable = true;
             settings = {
