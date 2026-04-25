@@ -24,15 +24,13 @@
           ...
         }:
         {
-          system.stateVersion = "23.11";
+          system.stateVersion = "25.11";
           programs.sway.enable = true;
           services.greetd = {
             enable = true;
             settings = {
               default_session = {
-                command = lib.mkForce "${
-                  self.packages."x86_64-linux".default
-                }/bin/ndlm --session ${pkgs.sway}/bin/sway --theme-file ${
+                command = lib.mkForce "${self.packages."x86_64-linux".default}/bin/ndlm --theme-file ${
                   (pkgs.catppuccin-plymouth.override { variant = "mocha"; })
                 }/share/plymouth/themes/catppuccin-mocha/catppuccin-mocha.plymouth";
                 user = "greeter";

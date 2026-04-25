@@ -1,8 +1,11 @@
 use libc::{POLLIN, POLLPRI, poll, pollfd};
 use pango::FontDescription;
 use std::fs;
-use std::io::{Bytes, Read, StdinLock};
+use std::io::StdinLock;
 use std::os::unix::io::AsRawFd;
+use std::path::Path;
+use termion::event::Key;
+use termion::input::TermRead;
 
 use crate::color::Color;
 
@@ -18,6 +21,66 @@ const LAST_USER_USERNAME: &str = "/var/cache/ndlm/lastuser";
 enum Mode {
     EditingUsername,
     EditingPassword,
+}
+
+#[derive(Clone, Debug)]
+pub struct Session {
+    pub name: String,
+    pub exec: Vec<String>,
+}
+
+fn parse_desktop_entry(path: &Path) -> Option<Session> {
+    let entry = match freedesktop_entry_parser::parse_entry(path) {
+        Ok(v) => v,
+        Err(e) => panic!("{}", e),
+    };
+
+    let name = entry
+        .section("Desktop Entry")
+        .attr("Name")
+        .unwrap_or("No name")
+        .to_string();
+
+    let exec_str = match entry.section("Desktop Entry").attr("Exec") {
+        Some(v) => v,
+        None => panic!("No Exec for desktop entry"),
+    };
+
+    let exec = match shell_words::split(exec_str) {
+        Ok(v) => v,
+        Err(e) => panic!("{}", e),
+    };
+
+    Some(Session { name, exec })
+}
+
+fn load_sessions() -> Vec<Session> {
+    let mut sessions = Vec::new();
+    let xdg_data_dirs = std::env::var("XDG_DATA_DIRS")
+        .unwrap_or_else(|_| "/usr/local/share:/usr/share".to_string());
+    let mut dirs = Vec::new();
+    for base_dir in xdg_data_dirs.split(':') {
+        if !base_dir.is_empty() {
+            dirs.push(format!("{}/xsessions", base_dir));
+            dirs.push(format!("{}/wayland-sessions", base_dir));
+        }
+    }
+
+    for dir in &dirs {
+        if let Ok(entries) = fs::read_dir(dir) {
+            for entry in entries.filter_map(Result::ok) {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("desktop")
+                    && let Some(session) = parse_desktop_entry(&path)
+                {
+                    sessions.push(session);
+                }
+            }
+        }
+    }
+
+    sessions.sort_by(|a, b| a.name.cmp(&b.name));
+    sessions
 }
 
 pub struct Card(pub std::fs::File);
@@ -46,13 +109,15 @@ pub struct LoginManager<'a> {
     mode: Mode,
     greetd: greetd::GreetD,
     config: Config,
-    stdin_bytes: Bytes<StdinLock<'static>>,
+    stdin_keys: termion::input::Keys<StdinLock<'static>>,
     username: String,
     password: String,
     should_quit: bool,
     drm_card: Option<&'a crate::manager::Card>, // DRM device handle
     fb_id: u32,
     crtc_id: u32,
+    sessions: Vec<Session>,
+    selected_session_idx: usize,
 }
 
 impl<'a> LoginManager<'a> {
@@ -65,12 +130,35 @@ impl<'a> LoginManager<'a> {
         fb_id: u32,
         crtc_id: u32,
     ) -> Self {
+        let mut sessions = load_sessions();
+        if sessions.is_empty() && !config.session.is_empty() {
+            sessions.push(Session {
+                name: "Default".to_string(),
+                exec: config.session.clone(),
+            });
+        }
+
+        let selected_session_idx = if !config.session.is_empty() {
+            let config_session_name = config
+                .session
+                .first()
+                .map(|s| s.to_lowercase())
+                .unwrap_or_default();
+
+            sessions
+                .iter()
+                .position(|s| s.name.to_lowercase().contains(&config_session_name))
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
         Self {
             buf,
             screen_size: (width, height),
             mode: Mode::EditingUsername,
             greetd: greetd::GreetD::new(),
-            stdin_bytes: std::io::stdin().lock().bytes(),
+            stdin_keys: std::io::stdin().lock().keys(),
             username: String::with_capacity(USERNAME_CAP),
             password: String::with_capacity(PASSWORD_CAP),
             config,
@@ -78,6 +166,8 @@ impl<'a> LoginManager<'a> {
             drm_card: Some(drm_card),
             fb_id,
             crtc_id,
+            sessions,
+            selected_session_idx,
         }
     }
 
@@ -109,17 +199,36 @@ impl<'a> LoginManager<'a> {
         password: &str,
         mode: Mode,
         bg: &Color,
+        sessions: &[Session],
+        selected_idx: usize,
     ) {
         let stars = "*".repeat(password.len());
         let font = FontDescription::from_string("DejaVu Sans Mono 18");
+        let font_small = FontDescription::from_string("DejaVu Sans Mono 14");
         let (username_color, password_color) = match mode {
             Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
         let (x, y) = (offset.0 - 120, offset.1 - 40);
-        surf.fill_input_region(x as i32, y as i32, 320, 56, bg);
+
+        surf.fill_input_region(x as i32, y as i32, 480, 90, bg);
         surf.draw_text_region(&format!("Username: {username}"), &font, &username_color, 0);
         surf.draw_text_region(&format!("Password: {stars}"), &font, &password_color, 24);
+
+        // Draw horizontal session list
+        if !sessions.is_empty() {
+            let session_y_offset = 56 + 10; // 10px below password field
+
+            if sessions.len() == 1 {
+                let text = format!("Session: {}", sessions[0].name);
+                surf.draw_text_region(&text, &font_small, &Color::YELLOW, session_y_offset);
+            } else {
+                let curr_name = &sessions[selected_idx].name;
+                let text = format!("Session (←/→): {}", curr_name);
+                surf.draw_text_region(&text, &font_small, &Color::YELLOW, session_y_offset);
+            }
+        }
+
         surf.composite_region_to_fb();
     }
 
@@ -149,6 +258,8 @@ impl<'a> LoginManager<'a> {
             &self.password,
             self.mode,
             &self.config.theme.module.background_start_color,
+            &self.sessions,
+            self.selected_session_idx,
         );
         if let Some(card) = self.drm_card {
             use drm::control::Device as _;
@@ -166,26 +277,40 @@ impl<'a> LoginManager<'a> {
         }
     }
 
-    fn read_byte(&mut self) -> u8 {
-        self.stdin_bytes
+    fn handle_keyboard(&mut self) {
+        let key = self
+            .stdin_keys
             .next()
             .and_then(Result::ok)
-            .unwrap_or_else(|| quit())
-    }
+            .unwrap_or_else(|| quit());
 
-    fn handle_keyboard(&mut self) {
-        match self.read_byte() as char {
-            '\x15' | '\x0B' => match self.mode {
-                Mode::EditingUsername => self.username.clear(),
-                Mode::EditingPassword => self.password.clear(),
-            },
-            '\x03' | '\x04' => {
+        match key {
+            Key::Left => {
+                if !self.sessions.is_empty() {
+                    self.selected_session_idx = if self.selected_session_idx == 0 {
+                        self.sessions.len() - 1
+                    } else {
+                        self.selected_session_idx - 1
+                    }
+                }
+            }
+            Key::Right => {
+                if !self.sessions.is_empty() {
+                    self.selected_session_idx =
+                        if self.selected_session_idx + 1 == self.sessions.len() {
+                            0
+                        } else {
+                            self.selected_session_idx + 1
+                        }
+                }
+            }
+            Key::Ctrl('c') | Key::Ctrl('d') => {
                 self.username.clear();
                 self.password.clear();
                 self.greetd.cancel();
                 self.should_quit = true;
             }
-            '\x7F' => match self.mode {
+            Key::Backspace => match self.mode {
                 Mode::EditingUsername => {
                     self.username.pop();
                 }
@@ -193,8 +318,8 @@ impl<'a> LoginManager<'a> {
                     self.password.pop();
                 }
             },
-            '\t' => self.goto_next_mode(),
-            '\r' => match self.mode {
+            Key::Char('\t') => self.goto_next_mode(),
+            Key::Char('\n') => match self.mode {
                 Mode::EditingUsername => {
                     if !self.username.is_empty() {
                         self.mode = Mode::EditingPassword;
@@ -205,10 +330,17 @@ impl<'a> LoginManager<'a> {
                         self.username.clear();
                         self.mode = Mode::EditingUsername;
                     } else {
+                        // Use selected session's exec command
+                        let session_cmd = if !self.sessions.is_empty() {
+                            self.sessions[self.selected_session_idx].exec.clone()
+                        } else {
+                            self.config.session.clone()
+                        };
+
                         let res = self.greetd.login(
                             self.username.clone(),
                             self.password.clone(),
-                            self.config.session.clone(),
+                            session_cmd,
                         );
                         match res {
                             Ok(_) => {
@@ -225,10 +357,11 @@ impl<'a> LoginManager<'a> {
                     }
                 }
             },
-            v => match self.mode {
+            Key::Char(v) => match self.mode {
                 Mode::EditingUsername => self.username.push(v),
                 Mode::EditingPassword => self.password.push(v),
             },
+            _ => {} // Ignore other keys
         }
     }
 

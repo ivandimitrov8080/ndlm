@@ -27,7 +27,7 @@ because the year of the linux desktop won't come before we have smooth boot scre
 > user = "greetd"
 > ```
 For this one check flake.nix#nixosConfigurations.default
-To see it for yourself `nix run`
+To see it for yourself `nix run .#nixosConfigurations.default.config.system.build.vm`
 
 # Future plans:
 * Enable selection of WM on the login screen
