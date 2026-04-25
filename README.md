@@ -30,5 +30,5 @@ For this one check flake.nix#nixosConfigurations.default
 To see it for yourself `nix run .#nixosConfigurations.default.config.system.build.vm`
 
 # Future plans:
-* Enable selection of WM on the login screen
-* Support a larger portion of plymouth theming
+* [x] Enable selection of WM on the login screen
+* [ ] Support a larger portion of plymouth theming
