@@ -19,7 +19,7 @@ because the year of the linux desktop won't come before we have smooth boot scre
 > # The default session, also known as the greeter.
 > [default_session]
 >
-> command = "ndlm --target /usr/bin/sway " 
+> command = "ndlm --theme-file /etc/plymouth/themes/catppuccin-mocha/catppuccin-mocha.plymouth" 
 >
 > # The user to run the command as. The privileges this user must have depends
 > # on the greeter. A graphical greeter may for example require the user to be
