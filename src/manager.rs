@@ -188,42 +188,46 @@ impl<'a> LoginManager<'a> {
         }
     }
 
-    fn clear_surface(surf: &crate::draw::FramebufferSurface, bg: &Color, screen_size: (u32, u32)) {
-        surf.fill_rect(0, 0, screen_size.0 as i32, screen_size.1 as i32, bg);
+    fn clear_surface(&self, surf: &crate::draw::FramebufferSurface) {
+        let bg = &self.config.theme.module.background_start_color;
+        surf.fill_rect(
+            0,
+            0,
+            self.screen_size.0 as i32,
+            self.screen_size.1 as i32,
+            bg,
+        );
     }
 
-    fn draw_prompt_surface(
-        surf: &mut crate::draw::FramebufferSurface,
-        offset: (u32, u32),
-        username: &str,
-        password: &str,
-        mode: Mode,
-        bg: &Color,
-        sessions: &[Session],
-        selected_idx: usize,
-    ) {
-        let stars = "*".repeat(password.len());
+    fn draw_prompt_surface(&self, surf: &mut crate::draw::FramebufferSurface, offset: (u32, u32)) {
+        let stars = "*".repeat(self.password.len());
         let font = FontDescription::from_string("DejaVu Sans Mono 18");
         let font_small = FontDescription::from_string("DejaVu Sans Mono 14");
-        let (username_color, password_color) = match mode {
+        let (username_color, password_color) = match self.mode {
             Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
             Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
         };
         let (x, y) = (offset.0 - 120, offset.1 - 40);
 
+        let bg = &self.config.theme.module.background_start_color;
         surf.fill_input_region(x as i32, y as i32, 480, 90, bg);
-        surf.draw_text_region(&format!("Username: {username}"), &font, &username_color, 0);
+        surf.draw_text_region(
+            &format!("Username: {}", self.username),
+            &font,
+            &username_color,
+            0,
+        );
         surf.draw_text_region(&format!("Password: {stars}"), &font, &password_color, 24);
 
         // Draw horizontal session list
-        if !sessions.is_empty() {
+        if !self.sessions.is_empty() {
             let session_y_offset = 56 + 10; // 10px below password field
 
-            if sessions.len() == 1 {
-                let text = format!("Session: {}", sessions[0].name);
+            if self.sessions.len() == 1 {
+                let text = format!("Session: {}", self.sessions[0].name);
                 surf.draw_text_region(&text, &font_small, &Color::YELLOW, session_y_offset);
             } else {
-                let curr_name = &sessions[selected_idx].name;
+                let curr_name = &self.sessions[self.selected_session_idx].name;
                 let text = format!("Session (←/→): {}", curr_name);
                 surf.draw_text_region(&text, &font_small, &Color::YELLOW, session_y_offset);
             }
@@ -246,21 +250,8 @@ impl<'a> LoginManager<'a> {
         let y = (self.screen_size.1 as f32 * yoff) as u32;
         let mut mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
             .expect("could not create framebuffer surface");
-        Self::clear_surface(
-            &mut_surface,
-            &self.config.theme.module.background_start_color,
-            self.screen_size,
-        );
-        Self::draw_prompt_surface(
-            &mut mut_surface,
-            (x, y),
-            &self.username,
-            &self.password,
-            self.mode,
-            &self.config.theme.module.background_start_color,
-            &self.sessions,
-            self.selected_session_idx,
-        );
+        self.clear_surface(&mut_surface);
+        self.draw_prompt_surface(&mut mut_surface, (x, y));
         if let Some(card) = self.drm_card {
             use drm::control::Device as _;
             card.page_flip(
@@ -368,11 +359,7 @@ impl<'a> LoginManager<'a> {
     fn setup(&mut self) {
         let mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
             .expect("could not create framebuffer surface");
-        Self::clear_surface(
-            &mut_surface,
-            &self.config.theme.module.background_start_color,
-            self.screen_size,
-        );
+        self.clear_surface(&mut_surface);
         self.draw();
         self.wait_for_drm_event(); // Wait for initial flip event
         if let Ok(user) = fs::read_to_string(LAST_USER_USERNAME) {
