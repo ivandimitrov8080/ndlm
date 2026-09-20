@@ -1,5 +1,4 @@
 use libc::{POLLIN, POLLPRI, poll, pollfd};
-use pango::FontDescription;
 use std::fs::{self, File};
 use std::io::{self, ErrorKind, StdinLock};
 use std::num::NonZeroU32;
@@ -10,9 +9,8 @@ use termion::input::TermRead;
 
 use drm::control::{connector, crtc, framebuffer};
 
-use crate::color::Color;
-
-use crate::{Config, greetd, vt};
+use crate::draw::FramebufferSurface;
+use crate::{Config, draw, greetd, vt};
 const USERNAME_CAP: usize = 64;
 const PASSWORD_CAP: usize = 64;
 
@@ -358,58 +356,65 @@ impl<'a> LoginManager<'a> {
         }
     }
 
-    fn clear_surface(&self, surf: &crate::draw::FramebufferSurface) {
-        let bg = &self.config.theme.module.background_start_color;
-        surf.fill_rect(
+    fn clear_surface(&self, surf: &FramebufferSurface) {
+        let module = &self.config.theme.module;
+        let (start, end) =
+            draw::background_colors(module.background_start_color, module.background_end_color);
+        surf.fill_vertical_gradient(
             0,
             0,
             self.screen_size.0 as i32,
             self.screen_size.1 as i32,
-            bg,
+            &start,
+            &end,
         );
     }
 
     /// Fills the buffer with the background colour without touching the display.
     fn clear(&mut self) {
-        let mut surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
+        let surface = FramebufferSurface::new(self.buf, self.screen_size)
             .expect("could not create framebuffer surface");
-        self.clear_surface(&mut surface);
+        self.clear_surface(&surface);
     }
 
-    fn draw_prompt_surface(&self, surf: &mut crate::draw::FramebufferSurface, offset: (u32, u32)) {
-        let stars = "*".repeat(self.password.len());
-        let font = FontDescription::from_string("DejaVu Sans Mono 18");
-        let font_small = FontDescription::from_string("DejaVu Sans Mono 14");
-        let (username_color, password_color) = match self.mode {
-            Mode::EditingUsername => (Color::YELLOW, Color::WHITE),
-            Mode::EditingPassword => (Color::WHITE, Color::YELLOW),
-        };
-        let (x, y) = (offset.0 - 120, offset.1 - 40);
-
-        let bg = &self.config.theme.module.background_start_color;
-        surf.fill_input_region(x as i32, y as i32, 480, 90, bg);
-        surf.draw_text_region(
-            &format!("Username: {}", self.username),
-            &font,
-            &username_color,
-            0,
+    fn draw_prompt_surface(&self, surf: &mut FramebufferSurface, center: (u32, u32)) {
+        let module = &self.config.theme.module;
+        let mut style = draw::PromptStyle::from_backgrounds(
+            module.background_start_color,
+            module.background_end_color,
         );
-        surf.draw_text_region(&format!("Password: {stars}"), &font, &password_color, 24);
-
-        // Draw horizontal session list
-        if !self.sessions.is_empty() {
-            let session_y_offset = 56 + 10; // 10px below password field
-
-            if self.sessions.len() == 1 {
-                let text = format!("Session: {}", self.current_session.name);
-                surf.draw_text_region(&text, &font_small, &Color::YELLOW, session_y_offset);
-            } else {
-                let text = format!("Session (←/→): {}", self.current_session.name);
-                surf.draw_text_region(&text, &font_small, &Color::YELLOW, session_y_offset);
-            }
+        if !module.title_font.to_string().is_empty() {
+            style.title_font = module.title_font.clone();
         }
 
-        surf.composite_region_to_fb();
+        let title = if self.config.theme.name.is_empty() {
+            "Welcome".to_string()
+        } else {
+            self.config.theme.name.clone()
+        };
+        let password = "•".repeat(self.password.len());
+        let session = if self.sessions.is_empty() {
+            None
+        } else if self.sessions.len() > 1 {
+            Some(format!("←  {}  →", self.current_session.name))
+        } else {
+            Some(self.current_session.name.clone())
+        };
+
+        let prompt = draw::Prompt {
+            title: &title,
+            username: &self.username,
+            password: &password,
+            session: session.as_deref(),
+            focused: match self.mode {
+                Mode::EditingUsername => draw::Field::Username,
+                Mode::EditingPassword => draw::Field::Password,
+            },
+            center,
+            screen: self.screen_size,
+        };
+
+        draw::draw_prompt(surf, &prompt, &style);
     }
 
     fn goto_next_mode(&mut self) {
@@ -426,10 +431,10 @@ impl<'a> LoginManager<'a> {
         let yoff = self.config.theme.module.dialog_vertical_alignment;
         let x = (self.screen_size.0 as f32 * xoff) as u32;
         let y = (self.screen_size.1 as f32 * yoff) as u32;
-        let mut mut_surface = crate::draw::FramebufferSurface::new(self.buf, self.screen_size)
+        let mut surface = FramebufferSurface::new(self.buf, self.screen_size)
             .expect("could not create framebuffer surface");
-        self.clear_surface(&mut mut_surface);
-        self.draw_prompt_surface(&mut mut_surface, (x, y));
+        self.clear_surface(&surface);
+        self.draw_prompt_surface(&mut surface, (x, y));
 
         let crtc = crtc::Handle::from(
             NonZeroU32::new(self.display.crtc).expect("CRTC id must be nonzero"),

@@ -22,3 +22,8 @@ pangocairo = "0.21.5"
 shell-words = "1.1"
 termion = "4.0.6"
 thiserror = "2.0.18"
+
+# Only used by `cargo run --example preview`; the greeter itself does not need
+# PNG support.
+[dev-dependencies]
+cairo-rs = { version = "0.21.5", features = ["png"] }
