@@ -387,11 +387,7 @@ impl<'a> LoginManager<'a> {
             style.title_font = module.title_font.clone();
         }
 
-        let title = if self.config.theme.name.is_empty() {
-            "Welcome".to_string()
-        } else {
-            self.config.theme.name.clone()
-        };
+        let title = "Welcome".to_string();
         let password = "•".repeat(self.password.len());
         let session = if self.sessions.is_empty() {
             None
