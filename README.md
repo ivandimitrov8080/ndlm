@@ -31,7 +31,7 @@ To see it for yourself `nix run .#nixosConfigurations.default.config.system.buil
 
 # Demo
 
-[demo](./examples/demo.gif)
+![](examples/demo.gif)
 
 # Future plans:
 * [x] Enable selection of WM on the login screen
