@@ -1,54 +1,67 @@
 {
   inputs = {
+    configuration.url = "github:ivandimitrov8080/configuration.nix";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
     devenv.inputs.nixpkgs.follows = "nixpkgs";
     treefmt-nix.url = "github:numtide/treefmt-nix";
+    catppuccin.url = "github:catppuccin/nix";
+    catppuccin.inputs.nixpkgs.follows = "nixpkgs";
   };
   outputs =
     inputs@{
       self,
+      configuration,
       nixpkgs,
       systems,
       devenv,
       treefmt-nix,
+      catppuccin,
       ...
     }:
     let
       eachSystem = nixpkgs.lib.genAttrs (import systems);
       test-vm =
         {
-          pkgs,
-          lib,
           ...
         }:
         {
-          system.stateVersion = "25.11";
-          programs.sway.enable = true;
-          programs.hyprland.enable = true;
-          services.greetd = {
+          imports = [
+            configuration.nixosModules.default
+            catppuccin.nixosModules.catppuccin
+          ];
+          nixpkgs.overlays = [
+            configuration.overlays.default
+            (final: prev: {
+              ndlm = self.packages.x86_64-linux.default;
+            })
+          ];
+          catppuccin = {
             enable = true;
-            settings = {
-              default_session = {
-                command = lib.mkForce "${self.packages."x86_64-linux".default}/bin/ndlm --theme-file ${
-                  (pkgs.catppuccin-plymouth.override { variant = "mocha"; })
-                }/share/plymouth/themes/catppuccin-mocha/catppuccin-mocha.plymouth";
-                user = "greeter";
-              };
+            autoEnable = true;
+            accent = "green";
+            flavor = "mocha";
+          };
+          system.stateVersion = "26.05";
+          programs.sway.enable = true;
+          boot = {
+            loader.limine = {
+              resolution = "1920x1080";
+              style.interface.resolution = "1920x1080";
+            };
+            initrd = {
+              kernelModules = [ "i915" ];
             };
           };
+          # programs.hyprland.enable = true;
+          meta.graphicalBoot.enable = true;
+          meta.graphicalBoot.plymouthTheme = "/etc/plymouth/themes/catppuccin-mocha/catppuccin-mocha.plymouth";
           users.users = {
             test = {
               isNormalUser = true;
               password = "test";
-            };
-            greeter = {
-              extraGroups = [
-                "video"
-                "input"
-                "render"
-              ];
+              extraGroups = [ "wheel" ];
             };
           };
           fileSystems."/" = {

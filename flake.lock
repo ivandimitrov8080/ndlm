@@ -1,5 +1,40 @@
 {
   "nodes": {
+    "catppuccin": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793368344,
+        "narHash": "sha256-ojN7KpXLYv6NgJ2OMn7cPioc46g7UB1pd4tBf//3S1U=",
+        "owner": "catppuccin",
+        "repo": "nix",
+        "rev": "feac189528d08ca7c46bf1605d84b78ea5fe8263",
+        "type": "github"
+      },
+      "original": {
+        "owner": "catppuccin",
+        "repo": "nix",
+        "type": "github"
+      }
+    },
+    "configuration": {
+      "locked": {
+        "lastModified": 1793738945,
+        "narHash": "sha256-qpRybhMdzOKBBun5409a395qejcYZxI2hJMhJvSkNbE=",
+        "owner": "ivandimitrov8080",
+        "repo": "configuration.nix",
+        "rev": "7f3737b56b37eacceccb4027400e071872f13cfb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ivandimitrov8080",
+        "repo": "configuration.nix",
+        "type": "github"
+      }
+    },
     "crate2nix": {
       "flake": false,
       "locked": {
@@ -224,6 +259,8 @@
     },
     "root": {
       "inputs": {
+        "catppuccin": "catppuccin",
+        "configuration": "configuration",
         "devenv": "devenv",
         "nixpkgs": "nixpkgs",
         "systems": "systems",
